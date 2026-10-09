@@ -11,7 +11,7 @@ Instagramのインサイト指標を、Instagram Graph API から Google Apps Sc
 
 | 項目 | 内容 |
 |---|---|
-| 実行基盤 | Google Apps Script(スプレッドシートにバインド、または単体スクリプト) |
+| 実行基盤 | Google Apps Script(単体スクリプト。出力先シートは `SpreadsheetApp.openById` で指定) |
 | データ取得元 | Instagram Graph API(Instagram Login / Facebook Login のどちらかは要確認) |
 | 出力先 | Google スプレッドシート(既存の「Instagramシート」の各タブ) |
 | 定期実行 | GAS の時間主導型トリガー |
@@ -66,8 +66,8 @@ CVR や割合などの派生指標は、現状シート側の数式で計算し�
 Analysis_Instagram/
 ├── README.md
 ├── .gitignore
-├── appsscript.json      # GAS マニフェスト
 ├── src/
+│   ├── appsscript.json  # GAS マニフェスト(タイムゾーン Asia/Tokyo)
 │   ├── config.gs        # 定数・シート名・列定義
 │   ├── api.gs           # Graph API 呼び出し・ページネーション・リトライ
 │   ├── token.gs         # トークン更新
@@ -84,7 +84,7 @@ Analysis_Instagram/
 ```bash
 npm install -g @google/clasp
 clasp login
-clasp clone <scriptId>    # または clasp create
+clasp clone <scriptId> --rootDir src   # 作成済みの単体スクリプトを取得
 clasp push
 ```
 
@@ -102,4 +102,4 @@ clasp push
 
 - ブランチ運用: `main` から作業ブランチを切り、変更後にマージする
 - コミット前に `git status` で、トークンやデータが含まれていないことを確認する
-- `.gitignore` は `*.json` を除外しているため、`appsscript.json` などコードに必要な JSON は `git add -f` で追加する
+- `.gitignore` は `*.json` を除外し、`src/appsscript.json` のみ例外としている。`.clasp.json`(scriptId)と `.clasprc.json`(認証情報)はGit管理外
