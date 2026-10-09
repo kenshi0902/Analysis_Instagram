@@ -1,0 +1,25 @@
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+token*
+credentials*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Raw / downloaded data
+data/
+*.csv
+*.json
+*.zip
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
