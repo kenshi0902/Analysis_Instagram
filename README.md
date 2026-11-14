@@ -74,6 +74,10 @@ Analysis_Instagram/
     ├── sheet.gs         # シート書き込み(ヘッダー名で列特定・upsert・手入力列の保護)
     ├── stories.gs       # ストーリーズのインサイト取得
     ├── followers.gs     # フォロワー数の日次スナップショット
+    ├── media.gs         # フィード・リールのインサイト取得(API_フィード / API_リール)
+    ├── account.gs       # アカウント日次インサイト・オーディエンス属性(API_アカウント日次 / API_オーディエンス)
+    ├── dashboard.gs     # ウェブアプリ(doGet)とシートデータの読み出し
+    ├── Index.html       # ダッシュボード画面(Chart.js)
     ├── triggers.gs      # トリガーの登録・削除
     └── main.gs          # 設定確認・接続テスト・シート初期化
 ```
@@ -123,3 +127,13 @@ clasp push                # src/ を GAS に反映(scriptId は .clasp.json、Gi
 - ブランチ運用: `main` から作業ブランチを切り、変更後にマージする
 - コミット前に `git status` で、トークンやデータが含まれていないことを確認する
 - `.gitignore` は `*.json` を除外し、`src/appsscript.json` のみ例外としている。`.clasp.json`(scriptId)と `.clasprc.json`(認証情報)はGit管理外
+
+## ダッシュボード
+
+GAS ウェブアプリとして、シートのデータを概要・投稿・ストーリーズ・オーディエンスの4タブで表示します。
+
+1. `clasp push` 後、`runBackfill` を一度実行して過去分を取得する(投稿は全件、アカウント日次は30日分)。
+2. GAS エディタの「デプロイ」→「新しいデプロイ」→「ウェブアプリ」でデプロイし、URL を開く(実行ユーザー: 自分 / アクセス: 自分のみ)。
+3. `installTriggers` で日次の自動取得を登録する。
+
+API 取得分は手入力の既存タブと混ざらないよう、`API_` 接頭辞の専用タブに書き込みます。週間・月間の集計は日次データをダッシュボード側で合算します。

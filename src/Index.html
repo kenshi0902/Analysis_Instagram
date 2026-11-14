@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instagram ダッシュボード</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f6f6f4; --surface: #fcfcfb; --border: #e3e2dd;
+    --text: #0b0b0b; --text2: #52514e; --muted: #8a897f; --grid: #e9e8e3;
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+    --good: #1a7f4b; --bad: #c4332f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #121211; --surface: #1a1a19; --border: #2e2e2b;
+      --text: #f0efec; --text2: #c3c2b7; --muted: #8f8e84; --grid: #2b2b28;
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+      --good: #4cc38a; --bad: #ef7d79;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, "Hiragino Sans", "Noto Sans JP", sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  h1 { font-size: 20px; margin: 0; }
+  .meta { color: var(--muted); font-size: 12px; }
+  .tabs, .range { display: flex; gap: 4px; flex-wrap: wrap; }
+  button { font: inherit; color: var(--text2); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  button[aria-pressed="true"] { color: var(--text); border-color: var(--s1); box-shadow: inset 0 -2px 0 var(--s1); }
+  .toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .kpi .label { color: var(--text2); font-size: 12px; }
+  .kpi .value { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi .delta { font-size: 12px; color: var(--muted); }
+  .kpi .delta.up { color: var(--good); } .kpi .delta.down { color: var(--bad); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .card h2 { font-size: 14px; margin: 0 0 2px; }
+  .card .sub { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+  .chart { position: relative; height: 240px; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  th { color: var(--text2); font-weight: 500; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--surface); }
+  th:first-child, td:first-child { text-align: left; }
+  td.cap { text-align: left; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+  td a, .thumb { color: var(--s1); }
+  .thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; vertical-align: middle; margin-right: 8px; background: var(--grid); }
+  .empty { color: var(--muted); padding: 24px 0; text-align: center; }
+  #status { color: var(--muted); padding: 40px 0; text-align: center; }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Instagram ダッシュボード</h1>
+      <div class="meta" id="generated"></div>
+    </div>
+    <button id="reload" type="button">再読み込み</button>
+  </header>
+
+  <div id="status">読み込み中…</div>
+
+  <div id="app" class="hidden">
+    <div class="toolbar">
+      <div class="tabs" id="tabs" role="tablist"></div>
+      <div class="range" id="range"></div>
+    </div>
+    <div id="view"></div>
+  </div>
+</div>
+
+<script>
+const TABS = [
+  { id: 'overview', label: '概要' },
+  { id: 'posts', label: '投稿(フィード・リール)' },
+  { id: 'stories', label: 'ストーリーズ' },
+  { id: 'audience', label: 'オーディエンス' },
+];
+const RANGES = [{ d: 7, l: '7日' }, { d: 30, l: '30日' }, { d: 90, l: '90日' }, { d: 0, l: '全期間' }];
+const state = { tab: 'overview', days: 30, sort: {} };
+let DATA = null;
+let charts = [];
+
+const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const num = (v) => (v === '' || v === null || v === undefined || isNaN(Number(v)) ? null : Number(v));
+const fmt = (v) => (v === null || v === undefined ? '–' : Number(v).toLocaleString('ja-JP', { maximumFractionDigits: 1 }));
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const sum = (rows, k) => rows.reduce((a, r) => a + (num(r[k]) || 0), 0);
+const dateOf = (r, k) => String(r[k] || '').slice(0, 10);
+const cutoff = () => {
+  if (!state.days) return '0000-00-00';
+  const d = new Date(Date.now() - state.days * 86400000 + 9 * 3600000); // JST
+  return d.toISOString().slice(0, 10);
+};
+const inRange = (rows, k) => rows.filter((r) => dateOf(r, k) >= cutoff());
+
+function load() {
+  document.getElementById('status').textContent = '読み込み中…';
+  document.getElementById('status').classList.remove('hidden');
+  google.script.run
+    .withSuccessHandler((d) => {
+      DATA = d;
+      document.getElementById('status').classList.add('hidden');
+      document.getElementById('app').classList.remove('hidden');
+      document.getElementById('generated').textContent = '更新: ' + d.generatedAt;
+      render();
+    })
+    .withFailureHandler((e) => {
+      document.getElementById('status').textContent = '読み込みに失敗しました: ' + (e && e.message ? e.message : e);
+    })
+    .getDashboardData();
+}
+
+function controls() {
+  const tabs = document.getElementById('tabs');
+  tabs.innerHTML = TABS.map((t) => `<button type="button" role="tab" data-tab="${t.id}" aria-pressed="${state.tab === t.id}">${t.label}</button>`).join('');
+  const range = document.getElementById('range');
+  range.innerHTML = RANGES.map((r) => `<button type="button" data-days="${r.d}" aria-pressed="${state.days === r.d}">${r.l}</button>`).join('');
+  range.classList.toggle('hidden', state.tab === 'audience');
+}
+document.getElementById('tabs').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return; state.tab = b.dataset.tab; render();
+});
+document.getElementById('range').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return; state.days = Number(b.dataset.days); render();
+});
+document.getElementById('reload').addEventListener('click', load);
+
+function render() {
+  charts.forEach((c) => c.destroy()); charts = [];
+  controls();
+  const v = document.getElementById('view');
+  ({ overview, posts, stories, audience }[state.tab])(v);
+}
+
+/* ---------- 共通部品 ---------- */
+function kpi(label, value, delta) {
+  let d = '';
+  if (delta !== undefined && delta !== null) {
+    const cls = delta > 0 ? 'up' : delta < 0 ? 'down' : '';
+    d = `<div class="delta ${cls}">${delta > 0 ? '▲ +' : delta < 0 ? '▼ ' : ''}${fmt(delta)}</div>`;
+  }
+  return `<div class="card kpi"><div class="label">${esc(label)}</div><div class="value">${value}</div>${d}</div>`;
+}
+function chartCard(id, title, sub) {
+  return `<div class="card"><h2>${esc(title)}</h2><div class="sub">${esc(sub || '')}</div><div class="chart"><canvas id="${id}"></canvas></div></div>`;
+}
+function baseOpts(extra) {
+  const text = css('--text2'), grid = css('--grid');
+  return Object.assign({
+    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+    plugins: { legend: { labels: { color: text, usePointStyle: true, boxWidth: 8 } }, tooltip: { mode: 'index', intersect: false } },
+    scales: {
+      x: { ticks: { color: text, maxTicksLimit: 8 }, grid: { display: false } },
+      y: { ticks: { color: text }, grid: { color: grid }, beginAtZero: true },
+    },
+  }, extra || {});
+}
+function line(id, labels, series) {
+  const colors = [css('--s1'), css('--s2'), css('--s3')];
+  charts.push(new Chart(document.getElementById(id), {
+    type: 'line',
+    data: { labels, datasets: series.map((s, i) => ({
+      label: s.label, data: s.data, borderColor: colors[i], backgroundColor: colors[i], borderWidth: 2,
+      pointRadius: labels.length > 40 ? 0 : 3, pointHoverRadius: 5, tension: 0.2, spanGaps: true,
+    })) },
+    options: baseOpts({ plugins: { legend: { display: series.length > 1, labels: { color: css('--text2'), usePointStyle: true, boxWidth: 8 } } } }),
+  }));
+}
+function bar(id, labels, series, horizontal) {
+  const colors = [css('--s1'), css('--s2'), css('--s3')];
+  const o = baseOpts({ plugins: { legend: { display: series.length > 1, labels: { color: css('--text2'), usePointStyle: true, boxWidth: 8 } } } });
+  if (horizontal) { o.indexAxis = 'y'; o.scales.x = { ticks: { color: css('--text2') }, grid: { color: css('--grid') }, beginAtZero: true }; o.scales.y = { ticks: { color: css('--text2') }, grid: { display: false } }; }
+  charts.push(new Chart(document.getElementById(id), {
+    type: 'bar',
+    data: { labels, datasets: series.map((s, i) => ({ label: s.label, data: s.data, backgroundColor: colors[i], borderRadius: 4, maxBarThickness: 28 })) },
+    options: o,
+  }));
+}
+function table(rows, cols, key) {
+  if (!rows.length) return '<div class="empty">データがありません</div>';
+  const s = state.sort[key] || { k: cols[0].k, dir: -1 };
+  const sorted = rows.slice().sort((a, b) => {
+    const x = a[s.k], y = b[s.k];
+    const nx = num(x), ny = num(y);
+    if (nx !== null && ny !== null) return (nx - ny) * s.dir;
+    return String(x || '').localeCompare(String(y || '')) * s.dir;
+  }).slice(0, 200);
+  const head = cols.map((c) => `<th data-sort="${key}|${c.k}">${esc(c.l)}${s.k === c.k ? (s.dir < 0 ? ' ▼' : ' ▲') : ''}</th>`).join('');
+  const body = sorted.map((r) => '<tr>' + cols.map((c) => `<td${c.cap ? ' class="cap"' : ''}>${c.f ? c.f(r) : fmt(num(r[c.k]))}</td>`).join('') + '</tr>').join('');
+  return `<div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+document.getElementById('view').addEventListener('click', (e) => {
+  const th = e.target.closest('th[data-sort]'); if (!th) return;
+  const [key, k] = th.dataset.sort.split('|');
+  const cur = state.sort[key] || {};
+  state.sort[key] = { k, dir: cur.k === k ? -cur.dir : -1 };
+  render();
+});
+const link = (r) => `<a href="${esc(r['URL'])}" target="_blank" rel="noopener">開く</a>`;
+const media = (r) => `${r['サムネイルURL'] ? `<img class="thumb" src="${esc(r['サムネイルURL'])}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}${esc(String(r['キャプション'] || '').slice(0, 40)) || '(キャプションなし)'}`;
+const lengthOf = (rows) => rows.length;
+
+/* ---------- 概要 ---------- */
+function overview(v) {
+  const fol = DATA.followers.slice().sort((a, b) => String(a['日付']).localeCompare(String(b['日付'])));
+  const acc = inRange(DATA.accountDaily, '日付').sort((a, b) => String(a['日付']).localeCompare(String(b['日付'])));
+  const latest = fol[fol.length - 1];
+  const start = fol.filter((r) => dateOf(r, '日付') >= cutoff())[0];
+  const growth = latest && start ? num(latest['フォロワー数']) - num(start['フォロワー数']) : null;
+  v.innerHTML = `
+    <div class="kpis">
+      ${kpi('フォロワー数', fmt(latest && num(latest['フォロワー数'])), growth)}
+      ${kpi('リーチ', fmt(sum(acc, 'リーチ')))}
+      ${kpi('閲覧数', fmt(sum(acc, '閲覧数')))}
+      ${kpi('インタラクション', fmt(sum(acc, 'インタラクション合計')))}
+      ${kpi('プロフィール訪問', fmt(sum(acc, 'プロフィール訪問')))}
+      ${kpi('投稿数', fmt(latest && num(latest['投稿数'])))}
+    </div>
+    <div class="grid">
+      ${chartCard('c1', 'フォロワー数の推移', '実線・◆=実測 / 点線=純増からの推定値(y軸は0始まりではなく自動)')}
+      ${chartCard('c2', 'リーチと閲覧数', '日次')}
+      ${chartCard('c3', 'インタラクションの内訳', '日次')}
+      ${chartCard('c4', 'フォロー増減', '日次')}
+    </div>`;
+  const ff = fol.filter((r) => dateOf(r, '日付') >= cutoff());
+  // 推定値の区間(種別=推定の日に向かう線)は点線、実測は実線で描く
+  const isEst = (r) => r['種別'] === '推定';
+  const c1 = css('--s1');
+  charts.push(new Chart(document.getElementById('c1'), {
+    type: 'line',
+    data: {
+      labels: ff.map((r) => dateOf(r, '日付')),
+      datasets: [{
+        label: 'フォロワー数', data: ff.map((r) => num(r['フォロワー数'])),
+        borderColor: c1, backgroundColor: c1, borderWidth: 2, tension: 0.2, spanGaps: true,
+        pointRadius: (ctx) => (isEst(ff[ctx.dataIndex]) ? 2 : 4),
+        pointStyle: (ctx) => (isEst(ff[ctx.dataIndex]) ? 'circle' : 'rectRot'),
+        segment: { borderDash: (ctx) => (isEst(ff[ctx.p0DataIndex]) || isEst(ff[ctx.p1DataIndex]) ? [5, 4] : undefined) },
+      }],
+    },
+    options: baseOpts({
+      scales: { x: { ticks: { color: css('--text2'), maxTicksLimit: 8 }, grid: { display: false } }, y: { ticks: { color: css('--text2') }, grid: { color: css('--grid') } } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { mode: 'index', intersect: false, callbacks: { afterLabel: (c) => (isEst(ff[c.dataIndex]) ? '推定値' : '実測値') } },
+      },
+    }),
+  }));
+  const L = acc.map((r) => dateOf(r, '日付'));
+  line('c2', L, [{ label: 'リーチ', data: acc.map((r) => num(r['リーチ'])) }, { label: '閲覧数', data: acc.map((r) => num(r['閲覧数'])) }]);
+  line('c3', L, [{ label: 'いいね', data: acc.map((r) => num(r['いいね'])) }, { label: 'コメント', data: acc.map((r) => num(r['コメント'])) }, { label: '保存', data: acc.map((r) => num(r['保存'])) }]);
+  bar('c4', L, [{ label: 'フォロー増', data: acc.map((r) => num(r['フォロー増'])) }, { label: 'フォロー解除', data: acc.map((r) => num(r['フォロー解除'])) }]);
+}
+
+/* ---------- 投稿 ---------- */
+function posts(v) {
+  const feed = inRange(DATA.feed, '投稿日時'), reels = inRange(DATA.reels, '投稿日時');
+  const avg = (rows, k) => (rows.length ? sum(rows, k) / rows.length : null);
+  v.innerHTML = `
+    <div class="kpis">
+      ${kpi('フィード投稿数', fmt(feed.length))}
+      ${kpi('フィード平均リーチ', fmt(avg(feed, 'リーチ')))}
+      ${kpi('リール数', fmt(reels.length))}
+      ${kpi('リール平均閲覧数', fmt(avg(reels, '閲覧数')))}
+      ${kpi('リール平均視聴時間(秒)', fmt(avg(reels, '平均視聴時間(秒)')))}
+    </div>
+    <div class="grid">
+      ${chartCard('c1', 'フィード: 投稿ごとのリーチ', '古い順')}
+      ${chartCard('c2', 'リール: 投稿ごとの閲覧数', '古い順')}
+    </div>
+    <div class="card" style="margin-bottom:12px"><h2>フィード投稿</h2>
+      ${table(feed, [
+        { k: '投稿日時', l: '投稿日時', f: (r) => esc(String(r['投稿日時']).slice(0, 16)) },
+        { k: 'キャプション', l: '投稿', f: media, cap: true }, { k: '種類', l: '種類', f: (r) => esc(r['種類'] || '') },
+        { k: '閲覧数', l: '閲覧' }, { k: 'リーチ', l: 'リーチ' }, { k: 'いいね', l: 'いいね' }, { k: 'コメント', l: 'コメント' },
+        { k: '保存', l: '保存' }, { k: 'シェア', l: 'シェア' }, { k: 'フォロー', l: 'フォロー' }, { k: 'プロフィール訪問', l: 'プロフ訪問' },
+        { k: 'URL', l: '', f: link },
+      ], 'feed')}</div>
+    <div class="card"><h2>リール</h2>
+      ${table(reels, [
+        { k: '投稿日時', l: '投稿日時', f: (r) => esc(String(r['投稿日時']).slice(0, 16)) },
+        { k: 'キャプション', l: '投稿', f: media, cap: true },
+        { k: '閲覧数', l: '閲覧' }, { k: 'リーチ', l: 'リーチ' }, { k: 'いいね', l: 'いいね' }, { k: 'コメント', l: 'コメント' },
+        { k: '保存', l: '保存' }, { k: 'シェア', l: 'シェア' }, { k: '平均視聴時間(秒)', l: '平均視聴(秒)' }, { k: '合計視聴時間(秒)', l: '合計視聴(秒)' },
+        { k: 'URL', l: '', f: link },
+      ], 'reels')}</div>`;
+  const byDate = (rows) => rows.slice().sort((a, b) => String(a['投稿日時']).localeCompare(String(b['投稿日時']))).slice(-40);
+  const f = byDate(feed), r = byDate(reels);
+  bar('c1', f.map((x) => dateOf(x, '投稿日時')), [{ label: 'リーチ', data: f.map((x) => num(x['リーチ'])) }]);
+  bar('c2', r.map((x) => dateOf(x, '投稿日時')), [{ label: '閲覧数', data: r.map((x) => num(x['閲覧数'])) }]);
+}
+
+/* ---------- ストーリーズ ---------- */
+function stories(v) {
+  const st = inRange(DATA.stories, '投稿日時').sort((a, b) => String(a['投稿日時']).localeCompare(String(b['投稿日時'])));
+  const nav = (k) => sum(st, k);
+  const exitRate = nav('次へ') + nav('戻る') + nav('終了') + nav('次のアカウントへ');
+  v.innerHTML = `
+    <div class="kpis">
+      ${kpi('ストーリー数', fmt(st.length))}
+      ${kpi('平均閲覧数', fmt(st.length ? sum(st, '閲覧数') / st.length : null))}
+      ${kpi('平均リーチ', fmt(st.length ? sum(st, 'リーチ') / st.length : null))}
+      ${kpi('返信合計', fmt(sum(st, '返信')))}
+      ${kpi('離脱率', exitRate ? (((nav('終了') + nav('次のアカウントへ')) / exitRate) * 100).toFixed(1) + '%' : '–')}
+    </div>
+    <div class="grid">
+      ${chartCard('c1', 'ストーリーごとの閲覧数とリーチ', '古い順(直近40件)')}
+      ${chartCard('c2', 'タップ操作の合計', '次へ / 戻る / 終了 / 次のアカウントへ')}
+    </div>
+    <div class="card"><h2>ストーリー一覧</h2>
+      ${table(st, [
+        { k: '投稿日時', l: '投稿日時', f: (r) => esc(String(r['投稿日時']).slice(0, 16)) },
+        { k: '曜日', l: '曜日', f: (r) => esc(r['曜日'] || '') },
+        { k: '閲覧数', l: '閲覧' }, { k: 'リーチ', l: 'リーチ' }, { k: '返信', l: '返信' }, { k: 'シェア', l: 'シェア' },
+        { k: 'フォロー', l: 'フォロー' }, { k: 'プロフィール訪問', l: 'プロフ訪問' },
+        { k: '次へ', l: '次へ' }, { k: '戻る', l: '戻る' }, { k: '終了', l: '終了' }, { k: '次のアカウントへ', l: '次のｱｶｳﾝﾄ' },
+        { k: 'URL', l: '', f: link },
+      ], 'stories')}</div>`;
+  const s = st.slice(-40);
+  bar('c1', s.map((x) => String(x['投稿日時']).slice(5, 16)), [{ label: '閲覧数', data: s.map((x) => num(x['閲覧数'])) }, { label: 'リーチ', data: s.map((x) => num(x['リーチ'])) }]);
+  bar('c2', ['次へ', '戻る', '終了', '次のアカウントへ'], [{ label: '回数', data: [nav('次へ'), nav('戻る'), nav('終了'), nav('次のアカウントへ')] }]);
+}
+
+/* ---------- オーディエンス ---------- */
+function audience(v) {
+  const a = DATA.audience;
+  if (!a.length) { v.innerHTML = '<div class="card empty">オーディエンスのデータがありません。フォロワー100人以上で syncAudience を実行すると取得されます。</div>'; return; }
+  const targets = ['フォロワー', 'エンゲージしたオーディエンス', 'リーチしたオーディエンス'];
+  const kinds = ['年齢層', '性別', '都市', '国'];
+  let html = '';
+  targets.forEach((t, ti) => {
+    html += `<h2 style="margin:16px 0 8px">${esc(t)}</h2><div class="grid">`;
+    kinds.forEach((k, ki) => {
+      const rows = a.filter((r) => r['対象'] === t && r['区分'] === k);
+      html += rows.length ? chartCard(`a${ti}_${ki}`, k, '人数') : `<div class="card"><h2>${k}</h2><div class="empty">データなし</div></div>`;
+    });
+    html += '</div>';
+  });
+  v.innerHTML = html;
+  const ageOrder = (x) => parseInt(String(x['項目']), 10) || 0;
+  targets.forEach((t, ti) => kinds.forEach((k, ki) => {
+    let rows = a.filter((r) => r['対象'] === t && r['区分'] === k);
+    if (!rows.length) return;
+    rows = rows.slice().sort(k === '年齢層' ? (x, y) => ageOrder(x) - ageOrder(y) : (x, y) => num(y['人数']) - num(x['人数'])).slice(0, 10);
+    const label = (x) => ({ F: '女性', M: '男性', U: '不明' }[x['項目']] || x['項目']);
+    bar(`a${ti}_${ki}`, rows.map(label), [{ label: '人数', data: rows.map((x) => num(x['人数'])) }], k === '都市' || k === '国');
+  }));
+}
+
+load();
+</script>
+</body>
+</html>
