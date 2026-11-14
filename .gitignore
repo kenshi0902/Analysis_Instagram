@@ -18,6 +18,11 @@ data/
 *.csv
 *.json
 *.zip
+!src/appsscript.json
+
+# clasp
+.clasp.json
+.clasprc.json
 
 # OS / editor
 .DS_Store

@@ -11,7 +11,7 @@ Instagramのインサイト指標を、Instagram Graph API から Google Apps Sc
 
 | 項目 | 内容 |
 |---|---|
-| 実行基盤 | Google Apps Script(スプレッドシートにバインド、または単体スクリプト) |
+| 実行基盤 | Google Apps Script(単体スクリプト。出力先シートは `SpreadsheetApp.openById` で指定) |
 | データ取得元 | Instagram Graph API(Instagram Login / Facebook Login のどちらかは要確認) |
 | 出力先 | Google スプレッドシート(既存の「Instagramシート」の各タブ) |
 | 定期実行 | GAS の時間主導型トリガー |
@@ -60,46 +60,80 @@ CVR や割合などの派生指標は、現状シート側の数式で計算し�
 | `IG_USER_ID` | Instagram ビジネスアカウント ID |
 | `SPREADSHEET_ID` | 出力先スプレッドシートの ID |
 
-## ディレクトリ構成(予定)
+## ディレクトリ構成
 
 ```
 Analysis_Instagram/
 ├── README.md
 ├── .gitignore
-├── appsscript.json      # GAS マニフェスト
-├── src/
-│   ├── config.gs        # 定数・シート名・列定義
-│   ├── api.gs           # Graph API 呼び出し・ページネーション・リトライ
-│   ├── token.gs         # トークン更新
-│   ├── account.gs       # アカウントインサイト(月間/週間/フォロワー数)
-│   ├── media.gs         # フィード・リールのインサイト
-│   ├── stories.gs       # ストーリーズのインサイト
-│   ├── sheet.gs         # シート書き込み(追記・更新、手入力列の保護)
-│   └── triggers.gs      # トリガーの登録・削除
-└── docs/                # 列対応表などの設計メモ
+└── src/
+    ├── appsscript.json  # GAS マニフェスト(タイムゾーン Asia/Tokyo)
+    ├── config.gs        # 定数・テーブル(シート名・列)定義・設定読み込み
+    ├── api.gs           # Graph API 呼び出し・リトライ・ページネーション・インサイト解析
+    ├── refresh.gs       # トークン更新(Instagram ログインの場合のみ)
+    ├── sheet.gs         # シート書き込み(ヘッダー名で列特定・upsert・手入力列の保護)
+    ├── stories.gs       # ストーリーズのインサイト取得
+    ├── followers.gs     # フォロワー数の日次スナップショット
+    ├── media.gs         # フィード・リールのインサイト取得(API_フィード / API_リール)
+    ├── account.gs       # アカウント日次インサイト・オーディエンス属性(API_アカウント日次 / API_オーディエンス)
+    ├── dashboard.gs     # ウェブアプリ(doGet)とシートデータの読み出し
+    ├── Index.html       # ダッシュボード画面(Chart.js)
+    ├── triggers.gs      # トリガーの登録・削除
+    └── main.gs          # 設定確認・接続テスト・シート初期化
 ```
 
-## セットアップ(予定)
+## セットアップ
 
 ```bash
-npm install -g @google/clasp
-clasp login
-clasp clone <scriptId>    # または clasp create
-clasp push
+clasp push                # src/ を GAS に反映(scriptId は .clasp.json、Git管理外)
 ```
 
-その後、GAS エディタでスクリプトプロパティを設定し、`triggers.gs` の登録関数を一度実行します。
+1. GAS エディタの「プロジェクトの設定」→「スクリプト プロパティ」に以下を登録する。
+   | キー | 内容 |
+   |---|---|
+   | `IG_ACCESS_TOKEN` | 長期アクセストークン |
+   | `IG_USER_ID` | Instagram ビジネスアカウント ID |
+   | `SPREADSHEET_ID` | 書き込み先スプレッドシートの ID |
+   | `IG_API_HOST` | (任意)既定 `graph.facebook.com`。Instagram ログインなら `graph.instagram.com` |
+   | `IG_API_VERSION` | (任意)既定 `v23.0` |
+2. `checkConfig` → `testConnection` → `initSheets` の順に手動実行して動作を確認する。
+3. `runAll` で初回取得を試し、問題なければ `installTriggers` を一度実行する。
+
+### 定期実行の内容
+
+| 関数 | 頻度 | 内容 |
+|---|---|---|
+| `syncStories` | 6時間おき | ストーリーの最新インサイトで更新(24時間で消えるため) |
+| `syncFollowers` | 毎日 1時台 | フォロワー数・フォロー数・投稿数を記録、前日比を計算 |
+| `refreshToken` | 毎週月曜 3時台 | トークン更新(Instagram ログインのみ。それ以外はスキップ) |
+
+### シート書き込みの仕様
+
+- 列はヘッダー名で特定するため、列の並べ替えや手入力列の追加をしても壊れない
+- スクリプトが管理する列(`config.gs` の `TABLES`)以外には書き込まない
+- キー列(ストーリーID / 日付)で突き合わせ、あれば更新・無ければ追記
+- 取得できなかった指標は空で上書きせず、既存の値を残す
 
 ## 実装の進め方
 
-1. 各タブの列と API の指標の対応表を作る(`docs/`)
-2. API呼び出しの共通部分とトークン更新を実装
-3. ストーリーズ(取りこぼしが最も痛い)から自動化
-4. フィード・リール、アカウントインサイトの順に追加
+1. ~~API呼び出しの共通部分・シート書き込みの土台・ストーリーズ・フォロワー数~~(実装済み、実API未検証)
+2. トークンを設定して実API で動作確認
+3. フィード・リールのインサイトを追加
+4. アカウントインサイト(週間・月間)と性別・年齢層を追加
 5. トリガーを登録して本番運用
 
 ## 開発メモ
 
 - ブランチ運用: `main` から作業ブランチを切り、変更後にマージする
 - コミット前に `git status` で、トークンやデータが含まれていないことを確認する
-- `.gitignore` は `*.json` を除外しているため、`appsscript.json` などコードに必要な JSON は `git add -f` で追加する
+- `.gitignore` は `*.json` を除外し、`src/appsscript.json` のみ例外としている。`.clasp.json`(scriptId)と `.clasprc.json`(認証情報)はGit管理外
+
+## ダッシュボード
+
+GAS ウェブアプリとして、シートのデータを概要・投稿・ストーリーズ・オーディエンスの4タブで表示します。
+
+1. `clasp push` 後、`runBackfill` を一度実行して過去分を取得する(投稿は全件、アカウント日次は30日分)。
+2. GAS エディタの「デプロイ」→「新しいデプロイ」→「ウェブアプリ」でデプロイし、URL を開く(実行ユーザー: 自分 / アクセス: 自分のみ)。
+3. `installTriggers` で日次の自動取得を登録する。
+
+API 取得分は手入力の既存タブと混ざらないよう、`API_` 接頭辞の専用タブに書き込みます。週間・月間の集計は日次データをダッシュボード側で合算します。
