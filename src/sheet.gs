@@ -81,6 +81,19 @@ function upsertRows_(table, rows) {
   return { updated: updated, added: added };
 }
 
+/** キー列の値の集合 { key: true } を返す(既に記録済みかの判定用)。 */
+function existingKeys_(table) {
+  const t = openSheet_(table);
+  const last = t.sheet.getLastRow();
+  const out = {};
+  if (last < 2) return out;
+  t.sheet.getRange(2, t.columns[table.key], last - 1, 1).getValues().forEach(function (r) {
+    const k = keyOf_(r[0]);
+    if (k) out[k] = true;
+  });
+  return out;
+}
+
 /** 'yyyy-MM-dd HH:mm' 形式(日本時間)。API の "+0000" 形式のタイムスタンプも受け付ける。 */
 function formatJst_(isoLike, pattern) {
   const normalized = String(isoLike).replace(/([+-]\d{2})(\d{2})$/, '$1:$2');

@@ -17,7 +17,7 @@ function syncStories() {
 
   const now = formatJst_(new Date().toISOString());
   const rows = stories.map(function (s) {
-    const m = fetchInsightsSafe_(s.id, STORY_METRICS);
+    const m = fetchInsightsSafe_(s.id, STORY_METRICS, 'STORY');
     const nav = fetchBreakdownSafe_(s.id, 'navigation', 'story_navigation_action_type');
     const posted = new Date(String(s.timestamp).replace(/([+-]\d{2})(\d{2})$/, '$1:$2'));
     return {
