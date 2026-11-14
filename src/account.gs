@@ -80,6 +80,90 @@ function syncAccountRange_(days) {
 }
 
 /**
+ * 期間のユニーク値(リーチ・エンゲージしたアカウント)を取得する。
+ * これらは日次値を足すと同じ人を重複して数えるため、期間を指定して API から取り直す。
+ * API の上限で1回あたり30日までしか指定できないため、次の単位で保存する。
+ *   直近: R7 / R7前 / R30 / R30前(今日0時までの直近 N 日と、その前の N 日)
+ *   週  : W|月曜日の日付(月〜日)
+ *   月  : M|yyyy-MM(31日ある月は末尾30日分で近似)
+ */
+function syncAccountPeriods(weeks, months) {
+  // トリガー経由ではイベントオブジェクトが渡されるため、数値のときだけ採用する
+  weeks = typeof weeks === 'number' ? weeks : 2;
+  months = typeof months === 'number' ? months : 2;
+  const now = formatJst_(new Date().toISOString());
+  const todayStr = Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd');
+  const today0 = jstMidnightSec_(todayStr);
+  const rows = [];
+
+  const add = function (key, unit, since, until, state) {
+    const ins = fetchAccountTotals_(['reach', 'accounts_engaged'], since, until);
+    if (ins.reach === undefined && ins.accounts_engaged === undefined) return;
+    rows.push({
+      '期間キー': key,
+      '粒度': unit,
+      '開始日': secToDate_(since),
+      '終了日': secToDate_(until - 86400), // 終了日はその日を含む最終日
+      'リーチ': ins.reach,
+      'エンゲージしたアカウント': ins.accounts_engaged,
+      '状態': state,
+      '取得日時': now,
+    });
+  };
+
+  [7, 30].forEach(function (n) {
+    add('R' + n, '直近', today0 - n * 86400, today0, '確定');
+    add('R' + n + '前', '直近', today0 - 2 * n * 86400, today0 - n * 86400, '確定');
+  });
+
+  // 週(月曜始まり)。今週は今日0時までの途中集計。
+  const dow = Number(Utilities.formatDate(new Date(), TZ, 'u')); // 1=月 ... 7=日
+  const thisMonday = today0 - (dow - 1) * 86400;
+  for (let i = 0; i < weeks; i++) {
+    const since = thisMonday - i * 7 * 86400;
+    const until = Math.min(since + 7 * 86400, today0);
+    if (until <= since) continue; // 月曜0時ちょうどは今週分がまだ無い
+    add('W|' + secToDate_(since), '週', since, until, until < since + 7 * 86400 ? '途中' : '確定');
+  }
+
+  // 月。31日ある月は API 上限のため末尾30日分で近似する。
+  const ym = todayStr.slice(0, 7).split('-').map(Number);
+  for (let i = 0; i < months; i++) {
+    const y = ym[0], m = ym[1] - i;
+    const start = new Date(Date.UTC(y, m - 1, 1));
+    const next = new Date(Date.UTC(y, m, 1));
+    const startStr = Utilities.formatDate(start, 'UTC', 'yyyy-MM-dd');
+    const nextStr = Utilities.formatDate(next, 'UTC', 'yyyy-MM-dd');
+    let since = jstMidnightSec_(startStr);
+    const fullUntil = jstMidnightSec_(nextStr);
+    const until = Math.min(fullUntil, today0);
+    if (until <= since) continue;
+    let state = until < fullUntil ? '途中' : '確定';
+    if (until - since > 30 * 86400) {
+      since = until - 30 * 86400;
+      state = state === '途中' ? '途中' : '近似(30日分)';
+    }
+    add('M|' + startStr.slice(0, 7), '月', since, until, state);
+  }
+
+  const result = upsertRows_(TABLES.accountPeriod, rows);
+  console.log('アカウント期間: 追加 ' + result.added + ' / 更新 ' + result.updated);
+}
+
+/** 初回用。直近26週・6か月分を取得する。 */
+function syncAccountPeriodsBackfill() {
+  syncAccountPeriods(26, 6);
+}
+
+function jstMidnightSec_(dateStr) {
+  return Math.floor(new Date(dateStr + 'T00:00:00+09:00').getTime() / 1000);
+}
+
+function secToDate_(sec) {
+  return Utilities.formatDate(new Date(sec * 1000), TZ, 'yyyy-MM-dd');
+}
+
+/**
  * アカウントの total_value 指標を取得。まとめて失敗したら1指標ずつ取り直す。
  * breakdown を指定した場合は { dimension: value } を指標ごとに返す。
  */

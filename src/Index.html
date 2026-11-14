@@ -11,7 +11,7 @@
     color-scheme: light;
     --bg: #f6f6f4; --surface: #fcfcfb; --border: #e3e2dd;
     --text: #0b0b0b; --text2: #52514e; --muted: #8a897f; --grid: #e9e8e3;
-    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a;
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
     --good: #1a7f4b; --bad: #c4332f;
   }
   @media (prefers-color-scheme: dark) {
@@ -19,38 +19,57 @@
       color-scheme: dark;
       --bg: #121211; --surface: #1a1a19; --border: #2e2e2b;
       --text: #f0efec; --text2: #c3c2b7; --muted: #8f8e84; --grid: #2b2b28;
-      --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
       --good: #4cc38a; --bad: #ef7d79;
     }
   }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, "Hiragino Sans", "Noto Sans JP", sans-serif; }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 20px 16px 48px; }
-  header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 20px 16px 48px; }
+  header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
   h1 { font-size: 20px; margin: 0; }
   .meta { color: var(--muted); font-size: 12px; }
-  .tabs, .range { display: flex; gap: 4px; flex-wrap: wrap; }
-  button { font: inherit; color: var(--text2); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; cursor: pointer; }
+  .bar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .bar .lbl { color: var(--muted); font-size: 12px; margin-right: 4px; }
+  button { font: inherit; color: var(--text2); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px; cursor: pointer; }
   button[aria-pressed="true"] { color: var(--text); border-color: var(--s1); box-shadow: inset 0 -2px 0 var(--s1); }
   .toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px; }
-  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+  .subbar { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 12px; }
+  .note { color: var(--muted); font-size: 12px; margin: -4px 0 12px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; min-width: 0; }
   .kpi .label { color: var(--text2); font-size: 12px; }
-  .kpi .value { font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .kpi .value { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
   .kpi .delta { font-size: 12px; color: var(--muted); }
   .kpi .delta.up { color: var(--good); } .kpi .delta.down { color: var(--bad); }
+  .kpi .sub { color: var(--muted); font-size: 11px; }
+  .kpi.primary { border-color: var(--s1); }
+  .weak .value { opacity: .5; }
   .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; margin-bottom: 12px; }
   .card h2 { font-size: 14px; margin: 0 0 2px; }
-  .card .sub { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
+  .card .desc { color: var(--muted); font-size: 12px; margin-bottom: 8px; }
   .chart { position: relative; height: 240px; }
-  .table-wrap { overflow-x: auto; }
+  .table-wrap { overflow-x: auto; max-height: 560px; overflow-y: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 13px; }
   th, td { text-align: right; padding: 6px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  th { color: var(--text2); font-weight: 500; cursor: pointer; user-select: none; position: sticky; top: 0; background: var(--surface); }
-  th:first-child, td:first-child { text-align: left; }
-  td.cap { text-align: left; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
-  td a, .thumb { color: var(--s1); }
-  .thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 6px; vertical-align: middle; margin-right: 8px; background: var(--grid); }
+  th { color: var(--text2); font-weight: 500; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+  th[data-sort] { cursor: pointer; user-select: none; }
+  th.l, td.l { text-align: left; }
+  td.cap { text-align: left; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+  td a { color: var(--s1); }
+  .thumb { width: 32px; height: 32px; object-fit: cover; border-radius: 6px; vertical-align: middle; margin-right: 8px; background: var(--grid); }
+  .badge { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 999px; border: 1px solid var(--border); color: var(--text2); }
+  .badge.top { border-color: var(--s1); color: var(--text); }
+  .badge.pending { color: var(--muted); border-style: dashed; }
+  .funnel .step { margin: 10px 0; }
+  .funnel .row { display: flex; justify-content: space-between; font-size: 13px; }
+  .funnel .track { height: 10px; background: var(--grid); border-radius: 5px; overflow: hidden; margin-top: 4px; }
+  .funnel .fill { height: 100%; background: var(--s1); border-radius: 5px; min-width: 3px; }
+  .funnel .conv { color: var(--muted); font-size: 12px; text-align: center; margin: 2px 0; }
+  .heat td { text-align: center; min-width: 64px; padding: 8px 4px; border: 2px solid var(--surface); border-radius: 6px; font-size: 12px; }
+  .heat td.h { background: none; color: var(--text2); text-align: right; }
+  .heat td .n { display: block; font-size: 10px; opacity: .75; }
+  .heat td.low { color: var(--muted); background: var(--grid); }
   .empty { color: var(--muted); padding: 24px 0; text-align: center; }
   #status { color: var(--muted); padding: 40px 0; text-align: center; }
   .hidden { display: none; }
@@ -61,7 +80,7 @@
   <header>
     <div>
       <h1>Instagram ダッシュボード</h1>
-      <div class="meta" id="generated"></div>
+      <div class="meta" id="fresh"></div>
     </div>
     <button id="reload" type="button">再読み込み</button>
   </header>
@@ -70,290 +89,774 @@
 
   <div id="app" class="hidden">
     <div class="toolbar">
-      <div class="tabs" id="tabs" role="tablist"></div>
-      <div class="range" id="range"></div>
+      <div class="bar" id="tabs" role="tablist"></div>
+      <div class="bar" id="range"></div>
     </div>
     <div id="view"></div>
   </div>
 </div>
 
 <script>
+/* ===================== 設定 ===================== */
 const TABS = [
   { id: 'overview', label: '概要' },
   { id: 'posts', label: '投稿(フィード・リール)' },
   { id: 'stories', label: 'ストーリーズ' },
   { id: 'audience', label: 'オーディエンス' },
 ];
-const RANGES = [{ d: 7, l: '7日' }, { d: 30, l: '30日' }, { d: 90, l: '90日' }, { d: 0, l: '全期間' }];
-const state = { tab: 'overview', days: 30, sort: {} };
-let DATA = null;
-let charts = [];
+const RANGES = [{ v: 7, l: '7日' }, { v: 30, l: '30日' }, { v: 90, l: '90日' }, { v: 0, l: '全期間' }];
+const MIN_N = 5; // これ未満のサンプル数は参考値として薄く表示する
+const state = { tab: 'overview', days: 30, gran: 'day', fmt: 'all', point: 'cur', heat: 'reachRate', sort: {} };
+let DATA = null, P = null, charts = [];
 
+/* ===================== ユーティリティ ===================== */
+const DAY = 86400000;
 const css = (n) => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const num = (v) => (v === '' || v === null || v === undefined || isNaN(Number(v)) ? null : Number(v));
-const fmt = (v) => (v === null || v === undefined ? '–' : Number(v).toLocaleString('ja-JP', { maximumFractionDigits: 1 }));
+const div = (a, b) => (a == null || b == null || !b ? null : a / b);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const sum = (rows, k) => rows.reduce((a, r) => a + (num(r[k]) || 0), 0);
-const dateOf = (r, k) => String(r[k] || '').slice(0, 10);
-const cutoff = () => {
-  if (!state.days) return '0000-00-00';
-  const d = new Date(Date.now() - state.days * 86400000 + 9 * 3600000); // JST
-  return d.toISOString().slice(0, 10);
+const fmt = (v, d) => (v == null || !isFinite(v) ? '–' : Number(v).toLocaleString('ja-JP', { maximumFractionDigits: d == null ? 0 : d }));
+const pct = (v) => (v == null || !isFinite(v) ? '–' : (v * 100).toFixed(Math.abs(v) < 0.01 ? 2 : 1) + '%');
+const pct100 = (v) => (v == null ? null : +(v * 100).toFixed(3));
+const sumOf = (rows, k) => (rows.some((r) => r[k] != null) ? rows.reduce((a, r) => a + (r[k] || 0), 0) : null);
+const median = (arr) => {
+  const a = arr.filter((v) => v != null && isFinite(v)).sort((x, y) => x - y);
+  if (!a.length) return null;
+  const m = a.length >> 1;
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
 };
-const inRange = (rows, k) => rows.filter((r) => dateOf(r, k) >= cutoff());
+const quantile = (arr, q) => {
+  const a = arr.filter((v) => v != null && isFinite(v)).sort((x, y) => x - y);
+  if (!a.length) return null;
+  const pos = (a.length - 1) * q, lo = Math.floor(pos), hi = Math.ceil(pos);
+  return a[lo] + (a[hi] - a[lo]) * (pos - lo);
+};
+const nOf = (arr) => arr.filter((v) => v != null && isFinite(v)).length;
+const jstToday = () => new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10);
+const addDays = (d, n) => new Date(Date.parse(d + 'T00:00:00Z') + n * DAY).toISOString().slice(0, 10);
+const d10 = (v) => String(v == null ? '' : v).slice(0, 10);
+const parseTs = (s) => new Date(String(s).slice(0, 16).replace(' ', 'T') + ':00+09:00');
+const jstParts = (t) => { const j = new Date(t.getTime() + 9 * 3600000); return { dow: j.getUTCDay(), hour: j.getUTCHours() }; };
 
+/**
+ * 期間ウィンドウ [from, to)。shift=1 で直前の同じ長さの期間。
+ * アカウント日次は前日までしか無いので today を含めない(includeToday=false)。投稿・ストーリーは今日を含める。
+ */
+function win(days, shift, includeToday) {
+  const end = includeToday ? addDays(jstToday(), 1) : jstToday();
+  if (!days) return shift ? null : { from: '0000-00-00', to: end };
+  return { from: addDays(end, -days * (shift + 1)), to: addDays(end, -days * shift) };
+}
+const inWin = (d, w) => !!w && d >= w.from && d < w.to;
+
+/* ===================== データ整形 ===================== */
+function prepare(d) {
+  const fol = d.followers
+    .map((r) => ({ date: d10(r['日付']), count: num(r['フォロワー数']), est: r['種別'] === '推定' }))
+    .filter((r) => r.count != null).sort((a, b) => a.date.localeCompare(b.date));
+  // 指定日のフォロワー数(記録範囲外は null。範囲外を近似すると古い投稿のリーチ率が歪むため)
+  const folAt = (date) => {
+    if (!fol.length || date < fol[0].date) return null;
+    let v = null;
+    for (const r of fol) { if (r.date <= date) v = r.count; else break; }
+    return v;
+  };
+
+  const daily = d.accountDaily.map((r) => ({
+    date: d10(r['日付']), reach: num(r['リーチ']), views: num(r['閲覧数']), engaged: num(r['エンゲージしたアカウント']),
+    inter: num(r['インタラクション合計']), likes: num(r['いいね']), comments: num(r['コメント']), saves: num(r['保存']),
+    shares: num(r['シェア']), pv: num(r['プロフィール訪問']), follows: num(r['フォロー増']), unfollows: num(r['フォロー解除']),
+  })).sort((a, b) => a.date.localeCompare(b.date));
+
+  const periods = {};
+  d.accountPeriod.forEach((r) => {
+    periods[r['期間キー']] = {
+      key: String(r['期間キー']), unit: r['粒度'], from: d10(r['開始日']), to: d10(r['終了日']),
+      reach: num(r['リーチ']), engaged: num(r['エンゲージしたアカウント']), state: r['状態'] || '',
+    };
+  });
+
+  const metricsOf = (r) => ({
+    views: num(r['閲覧数']), reach: num(r['リーチ']), likes: num(r['いいね']), comments: num(r['コメント']),
+    saved: num(r['保存']), shares: num(r['シェア']), inter: num(r['インタラクション合計']),
+    follows: num(r['フォロー']), pv: num(r['プロフィール訪問']), watch: num(r['平均視聴時間(秒)']),
+  });
+  // メディアIDはキー列(文字列)から取り出す。数値列だと18桁のIDが丸められるため。
+  const snaps = {};
+  d.mediaSnapshots.forEach((r) => {
+    const [id, day] = String(r['キー']).split('|');
+    (snaps[id] = snaps[id] || {})[day] = metricsOf(r);
+  });
+  const now = Date.now();
+  const post = (r, type) => {
+    const t = parseTs(r['投稿日時']), p = jstParts(t), id = String(r['メディアID']);
+    return {
+      id, type, ts: String(r['投稿日時']).slice(0, 16), date: d10(r['投稿日時']), dow: p.dow, hour: p.hour,
+      ageDays: (now - t.getTime()) / DAY, caption: r['キャプション'] || '', thumb: r['サムネイルURL'] || '', url: r['URL'] || '',
+      cur: metricsOf(r), snaps: snaps[id] || {}, followers: folAt(d10(r['投稿日時'])),
+    };
+  };
+  const posts = d.feed.map((r) => post(r, 'フィード')).concat(d.reels.map((r) => post(r, 'リール')));
+
+  // ストーリーズは「同じ日の連続投稿」を1シーケンスとして扱う
+  const byDay = {};
+  d.stories.forEach((r) => {
+    const s = {
+      id: String(r['ストーリーID']), ts: String(r['投稿日時']).slice(0, 16), date: d10(r['投稿日時']), url: r['URL'] || '',
+      views: num(r['閲覧数']), reach: num(r['リーチ']), replies: num(r['返信']), shares: num(r['シェア']),
+      follows: num(r['フォロー']), pv: num(r['プロフィール訪問']),
+      next: num(r['次へ']), back: num(r['戻る']), exit: num(r['終了']), swipe: num(r['次のアカウントへ']),
+    };
+    (byDay[s.date] = byDay[s.date] || []).push(s);
+  });
+  const storyDays = Object.keys(byDay).sort().map((date) => {
+    const items = byDay[date].sort((a, b) => a.ts.localeCompare(b.ts));
+    const first = items[0], last = items[items.length - 1];
+    items.forEach((s, i) => {
+      s.pos = i + 1;
+      s.retention = div(s.reach, first.reach);
+      s.exitRate = div(s.exit, s.views);
+      s.backRate = div(s.back, s.views);
+      s.replyRate = div(s.replies, s.reach);
+    });
+    const followers = folAt(date);
+    return {
+      date, items, count: items.length, firstReach: first.reach, firstReachRate: div(first.reach, followers),
+      completion: items.length >= 2 ? div(last.reach, first.reach) : null, firstExit: first.exitRate,
+    };
+  });
+
+  const latest = (rows) => rows.reduce((m, r) => (String(r['取得日時'] || '') > m ? String(r['取得日時']) : m), '');
+  const fresh = [
+    ['フォロワー', latest(d.followers)], ['投稿', latest(d.feed.concat(d.reels))], ['ストーリー', latest(d.stories)],
+    ['アカウント', latest(d.accountDaily)], ['期間リーチ', latest(d.accountPeriod)], ['属性', latest(d.audience)],
+  ];
+  return { fol, folAt, daily, periods, posts, storyDays, audience: d.audience, fresh };
+}
+
+/* ===================== 読み込み・描画の骨組み ===================== */
 function load() {
-  document.getElementById('status').textContent = '読み込み中…';
-  document.getElementById('status').classList.remove('hidden');
+  const st = document.getElementById('status');
+  st.textContent = '読み込み中…';
+  st.classList.remove('hidden');
   google.script.run
     .withSuccessHandler((d) => {
       DATA = d;
-      document.getElementById('status').classList.add('hidden');
+      P = prepare(d);
+      st.classList.add('hidden');
       document.getElementById('app').classList.remove('hidden');
-      document.getElementById('generated').textContent = '更新: ' + d.generatedAt;
+      document.getElementById('fresh').textContent = '最終取得 ― ' +
+        P.fresh.map(([k, v]) => k + ' ' + (v ? v.slice(5, 16) : '未取得')).join(' / ');
       render();
     })
-    .withFailureHandler((e) => {
-      document.getElementById('status').textContent = '読み込みに失敗しました: ' + (e && e.message ? e.message : e);
-    })
+    .withFailureHandler((e) => { st.textContent = '読み込みに失敗しました: ' + (e && e.message ? e.message : e); })
     .getDashboardData();
 }
 
-function controls() {
-  const tabs = document.getElementById('tabs');
-  tabs.innerHTML = TABS.map((t) => `<button type="button" role="tab" data-tab="${t.id}" aria-pressed="${state.tab === t.id}">${t.label}</button>`).join('');
-  const range = document.getElementById('range');
-  range.innerHTML = RANGES.map((r) => `<button type="button" data-days="${r.d}" aria-pressed="${state.days === r.d}">${r.l}</button>`).join('');
-  range.classList.toggle('hidden', state.tab === 'audience');
+function seg(key, options, label) {
+  return `<div class="bar">${label ? `<span class="lbl">${esc(label)}</span>` : ''}${options.map((o) =>
+    `<button type="button" data-k="${key}" data-v="${o.v}" aria-pressed="${String(state[key]) === String(o.v)}">${esc(o.l)}</button>`).join('')}</div>`;
 }
+
+function render() {
+  charts.forEach((c) => c.destroy());
+  charts = [];
+  document.getElementById('tabs').innerHTML = TABS.map((t) =>
+    `<button type="button" role="tab" data-tab="${t.id}" aria-pressed="${state.tab === t.id}">${t.label}</button>`).join('');
+  const range = document.getElementById('range');
+  range.innerHTML = seg('days', RANGES, '期間');
+  range.classList.toggle('hidden', state.tab === 'audience');
+  const v = document.getElementById('view');
+  ({ overview, posts, stories, audience })[state.tab](v);
+}
+
 document.getElementById('tabs').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return; state.tab = b.dataset.tab; render();
 });
-document.getElementById('range').addEventListener('click', (e) => {
-  const b = e.target.closest('button'); if (!b) return; state.days = Number(b.dataset.days); render();
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('button[data-k]');
+  if (b) { const cur = state[b.dataset.k]; state[b.dataset.k] = typeof cur === 'number' ? Number(b.dataset.v) : b.dataset.v; render(); return; }
+  const th = e.target.closest('th[data-sort]');
+  if (th) {
+    const [key, k] = th.dataset.sort.split('|');
+    const cur = state.sort[key] || {};
+    state.sort[key] = { k, dir: cur.k === k ? -cur.dir : -1 };
+    render();
+  }
 });
 document.getElementById('reload').addEventListener('click', load);
 
-function render() {
-  charts.forEach((c) => c.destroy()); charts = [];
-  controls();
-  const v = document.getElementById('view');
-  ({ overview, posts, stories, audience }[state.tab])(v);
+/* ===================== 部品 ===================== */
+/** kind: 'rate' は差をpt、'count' は変化率で前期間比を出す */
+function deltaHtml(cur, prev, kind) {
+  if (prev === undefined) return '';
+  if (cur == null || prev == null || (kind !== 'rate' && !prev)) return '<div class="delta">前期間比 –</div>';
+  let d, txt;
+  if (kind === 'rate') { d = (cur - prev) * 100; txt = (d > 0 ? '+' : '') + d.toFixed(Math.abs(d) < 0.1 ? 2 : 1) + 'pt'; }
+  else { d = (cur - prev) / prev; txt = (d > 0 ? '+' : '') + (d * 100).toFixed(1) + '%'; }
+  const cls = d > 0 ? 'up' : d < 0 ? 'down' : '';
+  return `<div class="delta ${cls}">${d > 0 ? '▲' : d < 0 ? '▼' : '±'} ${txt} <span style="color:var(--muted)">前期間比</span></div>`;
 }
+/** o: { label, value, kind, prev, sub, n, primary } */
+function kpi(o) {
+  const v = o.kind === 'rate' ? pct(o.value) : fmt(o.value, o.digits);
+  const weak = o.n != null && o.n < MIN_N;
+  const sub = [o.sub, o.n != null ? 'n=' + o.n + (weak ? '(少)' : '') : ''].filter(Boolean).join(' · ');
+  return `<div class="card kpi${o.primary ? ' primary' : ''}${weak ? ' weak' : ''}"><div class="label">${esc(o.label)}</div>` +
+    `<div class="value">${v}</div>${deltaHtml(o.value, o.prev, o.kind)}${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div>`;
+}
+function card(id, title, desc, cls) {
+  return `<div class="card ${cls || ''}"><h2>${esc(title)}</h2><div class="desc">${esc(desc || '')}</div><div class="chart"><canvas id="${id}"></canvas></div></div>`;
+}
+const colors = () => [css('--s1'), css('--s2'), css('--s3'), css('--s4')];
+const legend = (show) => ({ display: show, labels: { color: css('--text2'), usePointStyle: true, boxWidth: 8 } });
+function scales(o) {
+  o = o || {};
+  const t = css('--text2'), g = css('--grid');
+  const x = { ticks: { color: t, maxTicksLimit: o.xTicks || 8 }, grid: { display: !!o.xGrid, color: g } };
+  const y = { ticks: { color: t }, grid: { color: g }, beginAtZero: o.zero !== false };
+  if (o.xType) x.type = o.xType;
+  if (o.xFmt) x.ticks.callback = o.xFmt;
+  if (o.yFmt) y.ticks.callback = o.yFmt;
+  if (o.yMax != null) y.max = o.yMax;
+  if (o.stacked) { x.stacked = true; y.stacked = true; }
+  if (o.xTitle) x.title = { display: true, text: o.xTitle, color: t };
+  if (o.yTitle) y.title = { display: true, text: o.yTitle, color: t };
+  if (o.horizontal) return { x: Object.assign(y, { beginAtZero: true }), y: Object.assign(x, { grid: { display: false } }) };
+  return { x, y };
+}
+const pctTick = (v) => v + '%';
+const pctLabel = (c) => `${c.dataset.label}: ${c.parsed[c.chart.options.indexAxis === 'y' ? 'x' : 'y'] == null ? '–' : (+c.parsed[c.chart.options.indexAxis === 'y' ? 'x' : 'y']).toFixed(2) + '%'}`;
+function mk(id, config) {
+  const el = document.getElementById(id);
+  if (el) charts.push(new Chart(el, config));
+}
+function lineDs(label, data, i, extra) {
+  const c = colors()[i];
+  return Object.assign({ label, data, borderColor: c, backgroundColor: c, borderWidth: 2, pointRadius: data.length > 40 ? 0 : 3, pointHoverRadius: 5, tension: 0.2, spanGaps: true }, extra || {});
+}
+function barDs(label, data, i, extra) {
+  return Object.assign({ label, data, backgroundColor: colors()[i], borderRadius: 4, maxBarThickness: 28, borderColor: css('--surface'), borderWidth: 1 }, extra || {});
+}
+const baseOpts = (o) => Object.assign({ responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false } }, o);
 
-/* ---------- 共通部品 ---------- */
-function kpi(label, value, delta) {
-  let d = '';
-  if (delta !== undefined && delta !== null) {
-    const cls = delta > 0 ? 'up' : delta < 0 ? 'down' : '';
-    d = `<div class="delta ${cls}">${delta > 0 ? '▲ +' : delta < 0 ? '▼ ' : ''}${fmt(delta)}</div>`;
-  }
-  return `<div class="card kpi"><div class="label">${esc(label)}</div><div class="value">${value}</div>${d}</div>`;
-}
-function chartCard(id, title, sub) {
-  return `<div class="card"><h2>${esc(title)}</h2><div class="sub">${esc(sub || '')}</div><div class="chart"><canvas id="${id}"></canvas></div></div>`;
-}
-function baseOpts(extra) {
-  const text = css('--text2'), grid = css('--grid');
-  return Object.assign({
-    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-    plugins: { legend: { labels: { color: text, usePointStyle: true, boxWidth: 8 } }, tooltip: { mode: 'index', intersect: false } },
-    scales: {
-      x: { ticks: { color: text, maxTicksLimit: 8 }, grid: { display: false } },
-      y: { ticks: { color: text }, grid: { color: grid }, beginAtZero: true },
-    },
-  }, extra || {});
-}
-function line(id, labels, series) {
-  const colors = [css('--s1'), css('--s2'), css('--s3')];
-  charts.push(new Chart(document.getElementById(id), {
-    type: 'line',
-    data: { labels, datasets: series.map((s, i) => ({
-      label: s.label, data: s.data, borderColor: colors[i], backgroundColor: colors[i], borderWidth: 2,
-      pointRadius: labels.length > 40 ? 0 : 3, pointHoverRadius: 5, tension: 0.2, spanGaps: true,
-    })) },
-    options: baseOpts({ plugins: { legend: { display: series.length > 1, labels: { color: css('--text2'), usePointStyle: true, boxWidth: 8 } } } }),
-  }));
-}
-function bar(id, labels, series, horizontal) {
-  const colors = [css('--s1'), css('--s2'), css('--s3')];
-  const o = baseOpts({ plugins: { legend: { display: series.length > 1, labels: { color: css('--text2'), usePointStyle: true, boxWidth: 8 } } } });
-  if (horizontal) { o.indexAxis = 'y'; o.scales.x = { ticks: { color: css('--text2') }, grid: { color: css('--grid') }, beginAtZero: true }; o.scales.y = { ticks: { color: css('--text2') }, grid: { display: false } }; }
-  charts.push(new Chart(document.getElementById(id), {
-    type: 'bar',
-    data: { labels, datasets: series.map((s, i) => ({ label: s.label, data: s.data, backgroundColor: colors[i], borderRadius: 4, maxBarThickness: 28 })) },
-    options: o,
-  }));
-}
-function table(rows, cols, key) {
+/** 散布図に中央値の十字線を引く */
+const medianLines = {
+  id: 'medianLines',
+  afterDatasetsDraw(chart, args, opts) {
+    const { ctx, chartArea: a, scales: s } = chart;
+    ctx.save();
+    ctx.strokeStyle = opts.color; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+    if (opts.x != null && opts.x > 0) { const px = s.x.getPixelForValue(opts.x); ctx.beginPath(); ctx.moveTo(px, a.top); ctx.lineTo(px, a.bottom); ctx.stroke(); }
+    if (opts.y != null) { const py = s.y.getPixelForValue(opts.y); ctx.beginPath(); ctx.moveTo(a.left, py); ctx.lineTo(a.right, py); ctx.stroke(); }
+    ctx.restore();
+  },
+};
+
+/** 並べ替え可能な表。cols: { k, l, type: 'rate'|'count'|'text', f, cls } */
+function table(rows, cols, key, def) {
   if (!rows.length) return '<div class="empty">データがありません</div>';
-  const s = state.sort[key] || { k: cols[0].k, dir: -1 };
+  const s = state.sort[key] || def;
   const sorted = rows.slice().sort((a, b) => {
     const x = a[s.k], y = b[s.k];
-    const nx = num(x), ny = num(y);
-    if (nx !== null && ny !== null) return (nx - ny) * s.dir;
-    return String(x || '').localeCompare(String(y || '')) * s.dir;
-  }).slice(0, 200);
-  const head = cols.map((c) => `<th data-sort="${key}|${c.k}">${esc(c.l)}${s.k === c.k ? (s.dir < 0 ? ' ▼' : ' ▲') : ''}</th>`).join('');
-  const body = sorted.map((r) => '<tr>' + cols.map((c) => `<td${c.cap ? ' class="cap"' : ''}>${c.f ? c.f(r) : fmt(num(r[c.k]))}</td>`).join('') + '</tr>').join('');
-  return `<div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+    if (x == null && y == null) return 0;
+    if (x == null) return 1;
+    if (y == null) return -1;
+    return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * s.dir;
+  }).slice(0, 300);
+  const head = cols.map((c) => `<th class="${c.type === 'text' ? 'l' : ''}"${c.k ? ` data-sort="${key}|${c.k}"` : ''}>${esc(c.l)}${s.k === c.k ? (s.dir < 0 ? ' ▼' : ' ▲') : ''}</th>`).join('');
+  const body = sorted.map((r) => '<tr>' + cols.map((c) => {
+    const v = c.f ? c.f(r) : c.type === 'rate' ? pct(r[c.k]) : c.type === 'text' ? esc(r[c.k]) : fmt(r[c.k], c.digits);
+    return `<td class="${c.cls || (c.type === 'text' ? 'l' : '')}">${v}</td>`;
+  }).join('') + '</tr>').join('');
+  return `<div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>` +
+    (rows.length > 300 ? `<div class="note" style="margin-top:8px">上位300件を表示(全${rows.length}件)</div>` : '');
 }
-document.getElementById('view').addEventListener('click', (e) => {
-  const th = e.target.closest('th[data-sort]'); if (!th) return;
-  const [key, k] = th.dataset.sort.split('|');
-  const cur = state.sort[key] || {};
-  state.sort[key] = { k, dir: cur.k === k ? -cur.dir : -1 };
-  render();
-});
-const link = (r) => `<a href="${esc(r['URL'])}" target="_blank" rel="noopener">開く</a>`;
-const media = (r) => `${r['サムネイルURL'] ? `<img class="thumb" src="${esc(r['サムネイルURL'])}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}${esc(String(r['キャプション'] || '').slice(0, 40)) || '(キャプションなし)'}`;
-const lengthOf = (rows) => rows.length;
+const linkCell = (r) => (r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">開く</a>` : '');
+const mediaCell = (r) => `${r.thumb ? `<img class="thumb" src="${esc(r.thumb)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}${esc(String(r.caption).slice(0, 36)) || '(キャプションなし)'}`;
 
-/* ---------- 概要 ---------- */
+/* ===================== 概要 ===================== */
+/** アカウントの期間集計。7日・30日は期間ユニークリーチ、それ以外は確定済みの週ユニークの平均で扱う。 */
+function accStats(days, shift) {
+  const w = win(days, shift, false);
+  if (!w) return null;
+  const rows = P.daily.filter((r) => inWin(r.date, w));
+  let reach = null, rateReach = null, rateRows = rows, label, sub;
+  if (days === 7 || days === 30) {
+    const p = P.periods['R' + days + (shift ? '前' : '')];
+    if (p) { reach = p.reach; rateReach = p.reach; }
+    label = `期間リーチ(${days}日)`;
+    sub = 'ユニーク数';
+  } else {
+    const weeks = Object.values(P.periods).filter((p) => p.unit === '週' && p.state === '確定' && p.from >= w.from && addDays(p.to, 1) <= w.to);
+    if (weeks.length) {
+      rateReach = weeks.reduce((a, p) => a + (p.reach || 0), 0);
+      reach = rateReach / weeks.length;
+      rateRows = P.daily.filter((r) => weeks.some((p) => r.date >= p.from && r.date <= p.to));
+    }
+    label = '週平均リーチ';
+    sub = `ユニーク数・${weeks.length}週の平均`;
+  }
+  const fStart = P.folAt(w.from);
+  const fEnd = shift ? P.folAt(w.to) : (P.fol.length ? P.fol[P.fol.length - 1].count : null);
+  const est = P.fol.some((r) => r.est && r.date >= w.from && r.date <= w.to);
+  return {
+    w, dayCount: rows.length, reach, label, sub,
+    reachRate: div(reach, fStart),
+    shareRate: div(sumOf(rateRows, 'shares'), rateReach),
+    er: div(sumOf(rateRows, 'inter'), rateReach),
+    pvRate: div(sumOf(rateRows, 'pv'), rateReach),
+    followConv: div(sumOf(rows, 'follows'), sumOf(rows, 'pv')),
+    pv: sumOf(rows, 'pv'), follows: sumOf(rows, 'follows'), unfollows: sumOf(rows, 'unfollows'),
+    fStart, fEnd, growth: fStart != null && fEnd != null ? div(fEnd - fStart, fStart) : null, est,
+  };
+}
+
+/** 推移グラフ用のバケット。日はその日のユニーク、週・月は期間ユニーク(日次の合計ではない)。 */
+function accBuckets() {
+  const w = win(state.days, 0, false);
+  if (state.gran === 'day') {
+    return P.daily.filter((r) => inWin(r.date, w)).map((r) => Object.assign({ label: r.date.slice(5), state: '' }, r));
+  }
+  const unit = state.gran === 'week' ? '週' : '月';
+  return Object.values(P.periods)
+    .filter((p) => p.unit === unit && addDays(p.to, 1) > w.from)
+    .sort((a, b) => a.from.localeCompare(b.from))
+    .map((p) => {
+      const rows = P.daily.filter((r) => r.date >= p.from && r.date <= p.to);
+      const expected = Math.round((Date.parse(p.to) - Date.parse(p.from)) / DAY) + 1;
+      const full = rows.length >= expected; // 日次が揃っていない期間は率を出さない
+      const s = (k) => (full ? sumOf(rows, k) : null);
+      return {
+        label: unit === '週' ? p.from.slice(5) + '週' : p.key.slice(2), state: p.state,
+        reach: p.reach, inter: s('inter'), likes: s('likes'), saves: s('saves'), shares: s('shares'),
+      };
+    });
+}
+
 function overview(v) {
-  const fol = DATA.followers.slice().sort((a, b) => String(a['日付']).localeCompare(String(b['日付'])));
-  const acc = inRange(DATA.accountDaily, '日付').sort((a, b) => String(a['日付']).localeCompare(String(b['日付'])));
-  const latest = fol[fol.length - 1];
-  const start = fol.filter((r) => dateOf(r, '日付') >= cutoff())[0];
-  const growth = latest && start ? num(latest['フォロワー数']) - num(start['フォロワー数']) : null;
+  const cur = accStats(state.days, 0);
+  const prev = state.days ? accStats(state.days, 1) : null;
+  const pv = (k) => (prev ? prev[k] : undefined);
+  const noPeriod = !Object.keys(P.periods).length;
   v.innerHTML = `
+    ${noPeriod ? '<div class="note">期間リーチ(ユニーク)が未取得です。GAS で syncAccountPeriodsBackfill を実行してください。</div>' : ''}
     <div class="kpis">
-      ${kpi('フォロワー数', fmt(latest && num(latest['フォロワー数'])), growth)}
-      ${kpi('リーチ', fmt(sum(acc, 'リーチ')))}
-      ${kpi('閲覧数', fmt(sum(acc, '閲覧数')))}
-      ${kpi('インタラクション', fmt(sum(acc, 'インタラクション合計')))}
-      ${kpi('プロフィール訪問', fmt(sum(acc, 'プロフィール訪問')))}
-      ${kpi('投稿数', fmt(latest && num(latest['投稿数'])))}
+      ${kpi({ label: cur.label, value: cur.reach, kind: 'count', prev: pv('reach'), sub: cur.sub, primary: true })}
+      ${kpi({ label: 'リーチ率', value: cur.reachRate, kind: 'rate', prev: pv('reachRate'), sub: (state.days === 7 || state.days === 30 ? 'リーチ' : '週平均リーチ') + ' ÷ 期首フォロワー', primary: true })}
+      ${kpi({ label: 'シェア率', value: cur.shareRate, kind: 'rate', prev: pv('shareRate'), sub: 'シェア ÷ リーチ', primary: true })}
+      ${kpi({ label: 'ER(リーチ基準)', value: cur.er, kind: 'rate', prev: pv('er'), sub: 'インタラクション ÷ リーチ' })}
+      ${kpi({ label: 'プロフィール訪問率', value: cur.pvRate, kind: 'rate', prev: pv('pvRate'), sub: '訪問 ÷ リーチ' })}
+      ${kpi({ label: 'フォロー転換率', value: cur.followConv, kind: 'rate', prev: pv('followConv'), sub: 'フォロー ÷ 訪問' })}
+      ${kpi({ label: 'フォロワー数', value: cur.fEnd, kind: 'count', sub: (cur.growth != null ? '期間増加率 ' + (cur.growth >= 0 ? '+' : '') + pct(cur.growth) : '期首の記録なし') + (cur.est ? '・推定値を含む' : '') })}
+    </div>
+    <div class="subbar">${seg('gran', [{ v: 'day', l: '日' }, { v: 'week', l: '週' }, { v: 'month', l: '月' }], '推移の粒度')}</div>
+    <div class="grid">
+      ${card('o_reach', 'リーチの推移', state.gran === 'day' ? 'その日のユニーク数' : '期間のユニーク数(日次の合計ではない)')}
+      ${card('o_er', 'ER(リーチ基準)の推移', 'インタラクション合計 ÷ リーチ')}
+      ${card('o_rates', '反応の内訳(率)', 'いいね・保存・シェアをそれぞれ ÷ リーチで比較')}
+      ${card('o_fol', 'フォロワー数の推移', '実線・◆=実測 / 点線=純増からの推定値')}
     </div>
     <div class="grid">
-      ${chartCard('c1', 'フォロワー数の推移', '実線・◆=実測 / 点線=純増からの推定値(y軸は0始まりではなく自動)')}
-      ${chartCard('c2', 'リーチと閲覧数', '日次')}
-      ${chartCard('c3', 'インタラクションの内訳', '日次')}
-      ${chartCard('c4', 'フォロー増減', '日次')}
+      <div class="card funnel"><h2>フォロワー獲得ファネル</h2><div class="desc">選択期間の合計(リーチは上のKPIと同じ値)</div>${funnelHtml(cur)}</div>
     </div>`;
-  const ff = fol.filter((r) => dateOf(r, '日付') >= cutoff());
-  // 推定値の区間(種別=推定の日に向かう線)は点線、実測は実線で描く
-  const isEst = (r) => r['種別'] === '推定';
-  const c1 = css('--s1');
-  charts.push(new Chart(document.getElementById('c1'), {
+
+  const b = accBuckets();
+  const L = b.map((x) => x.label);
+  const stTip = { callbacks: { afterLabel: (c) => (b[c.dataIndex].state && b[c.dataIndex].state !== '確定' ? '(' + b[c.dataIndex].state + ')' : '') } };
+  mk('o_reach', {
+    type: state.gran === 'day' ? 'line' : 'bar',
+    data: { labels: L, datasets: [state.gran === 'day' ? lineDs('リーチ', b.map((x) => x.reach), 0) : barDs('リーチ', b.map((x) => x.reach), 0)] },
+    options: baseOpts({ scales: scales(), plugins: { legend: legend(false), tooltip: stTip } }),
+  });
+  mk('o_er', {
+    type: 'line',
+    data: { labels: L, datasets: [lineDs('ER', b.map((x) => pct100(div(x.inter, x.reach))), 0)] },
+    options: baseOpts({ scales: scales({ yFmt: pctTick }), plugins: { legend: legend(false), tooltip: { callbacks: { label: pctLabel, afterLabel: stTip.callbacks.afterLabel } } } }),
+  });
+  mk('o_rates', {
     type: 'line',
     data: {
-      labels: ff.map((r) => dateOf(r, '日付')),
+      labels: L, datasets: [
+        lineDs('いいね率', b.map((x) => pct100(div(x.likes, x.reach))), 0),
+        lineDs('保存率', b.map((x) => pct100(div(x.saves, x.reach))), 1),
+        lineDs('シェア率', b.map((x) => pct100(div(x.shares, x.reach))), 2),
+      ],
+    },
+    options: baseOpts({ scales: scales({ yFmt: pctTick }), plugins: { legend: legend(true), tooltip: { callbacks: { label: pctLabel } } } }),
+  });
+  followerChart('o_fol');
+}
+
+function funnelHtml(s) {
+  const steps = [
+    { l: 'リーチ', v: s.reach }, { l: 'プロフィール訪問', v: s.pv }, { l: 'フォロー', v: s.follows },
+  ];
+  const max = steps[0].v || Math.max(...steps.map((x) => x.v || 0)) || 1;
+  const convs = [pct(div(s.pv, s.reach)), pct(div(s.follows, s.pv))];
+  return steps.map((x, i) =>
+    `<div class="step"><div class="row"><span>${x.l}</span><strong>${fmt(x.v)}</strong></div>` +
+    `<div class="track"><div class="fill" style="width:${Math.max(0.5, Math.min(100, ((x.v || 0) / max) * 100))}%"></div></div></div>` +
+    (i < 2 ? `<div class="conv">↓ ${convs[i]}</div>` : '')).join('') +
+    `<div class="desc" style="margin-top:8px">フォロー解除 ${fmt(s.unfollows)}${state.days !== 7 && state.days !== 30 ? '・リーチは週平均のため転換率は参考値' : ''}</div>`;
+}
+
+function followerChart(id) {
+  const w = win(state.days, 0, true);
+  const ff = P.fol.filter((r) => inWin(r.date, w));
+  const c = colors()[0];
+  mk(id, {
+    type: 'line',
+    data: {
+      labels: ff.map((r) => r.date.slice(5)),
       datasets: [{
-        label: 'フォロワー数', data: ff.map((r) => num(r['フォロワー数'])),
-        borderColor: c1, backgroundColor: c1, borderWidth: 2, tension: 0.2, spanGaps: true,
-        pointRadius: (ctx) => (isEst(ff[ctx.dataIndex]) ? 2 : 4),
-        pointStyle: (ctx) => (isEst(ff[ctx.dataIndex]) ? 'circle' : 'rectRot'),
-        segment: { borderDash: (ctx) => (isEst(ff[ctx.p0DataIndex]) || isEst(ff[ctx.p1DataIndex]) ? [5, 4] : undefined) },
+        label: 'フォロワー数', data: ff.map((r) => r.count), borderColor: c, backgroundColor: c, borderWidth: 2, tension: 0.2, spanGaps: true,
+        pointRadius: (x) => (ff[x.dataIndex] && ff[x.dataIndex].est ? 2 : 4),
+        pointStyle: (x) => (ff[x.dataIndex] && ff[x.dataIndex].est ? 'circle' : 'rectRot'),
+        segment: { borderDash: (x) => (ff[x.p0DataIndex].est || ff[x.p1DataIndex].est ? [5, 4] : undefined) },
       }],
     },
     options: baseOpts({
-      scales: { x: { ticks: { color: css('--text2'), maxTicksLimit: 8 }, grid: { display: false } }, y: { ticks: { color: css('--text2') }, grid: { color: css('--grid') } } },
+      scales: scales({ zero: false }),
+      plugins: { legend: legend(false), tooltip: { callbacks: { afterLabel: (x) => (ff[x.dataIndex].est ? '推定値' : '実測値') } } },
+    }),
+  });
+}
+
+/* ===================== 投稿 ===================== */
+const POINTS = [{ v: '1', l: '投稿後1日' }, { v: '7', l: '7日' }, { v: '28', l: '28日' }, { v: 'cur', l: '現在(累計)' }];
+function postRates(m, f) {
+  return {
+    reach: m.reach, views: m.views, follows: m.follows, watch: m.watch,
+    reachRate: div(m.reach, f), er: div(m.inter, m.reach), erF: div(m.inter, f),
+    likeRate: div(m.likes, m.reach), saveRate: div(m.saved, m.reach), shareRate: div(m.shares, m.reach), pvRate: div(m.pv, m.reach),
+  };
+}
+/** 選択中の形式・評価時点で投稿を集める。stat=false の行は表には出すが中央値から除く(経過日数が足りない)。 */
+function postSet(w) {
+  const rows = [];
+  let pending = 0, missing = 0;
+  P.posts.filter((p) => inWin(p.date, w) && (state.fmt === 'all' || p.type === state.fmt)).forEach((p) => {
+    let m, stat = true;
+    if (state.point === 'cur') {
+      m = p.cur;
+      if (p.ageDays < 7) { stat = false; pending++; }
+    } else {
+      m = p.snaps[state.point];
+      if (!m) { if (p.ageDays < Number(state.point) + 1) pending++; else missing++; return; }
+    }
+    rows.push(Object.assign({}, p, postRates(m, p.followers), { stat }));
+  });
+  return { rows, stats: rows.filter((r) => r.stat), pending, missing };
+}
+const POST_KPIS = [
+  { k: 'reachRate', l: 'リーチ率', sub: 'リーチ ÷ 投稿日のフォロワー', kind: 'rate', primary: true },
+  { k: 'reach', l: 'リーチ', sub: '中央値', kind: 'count', primary: true },
+  { k: 'shareRate', l: 'シェア率', sub: 'シェア ÷ リーチ', kind: 'rate', primary: true },
+  { k: 'er', l: 'ER(リーチ基準)', sub: 'インタラクション ÷ リーチ', kind: 'rate' },
+  { k: 'saveRate', l: '保存率', sub: '保存 ÷ リーチ', kind: 'rate' },
+  { k: 'erF', l: 'ER(フォロワー基準)', sub: 'インタラクション ÷ フォロワー', kind: 'rate' },
+];
+
+function posts(v) {
+  const w = win(state.days, 0, true), pw = state.days ? win(state.days, 1, true) : null;
+  const cur = postSet(w), prev = pw ? postSet(pw) : null;
+  const kp = POST_KPIS.slice();
+  if (state.fmt !== 'フィード') kp.push({ k: 'watch', l: '平均視聴時間', sub: '秒・リールのみ', kind: 'count', digits: 1 });
+  const pointNote = state.point === 'cur'
+    ? '累計値で比較。投稿後7日未満は「集計中」として中央値から除外しています。'
+    : `投稿後${state.point}日時点の値で比較(経過日数を揃えた比較)。記録は機能追加後の投稿から溜まります。`;
+  v.innerHTML = `
+    <div class="subbar">
+      ${seg('fmt', [{ v: 'all', l: 'すべて' }, { v: 'リール', l: 'リール' }, { v: 'フィード', l: 'フィード' }], '形式')}
+      ${seg('point', POINTS, '評価時点')}
+    </div>
+    <div class="note">${pointNote} 中央値の対象 ${cur.stats.length}件${cur.pending ? `・集計中 ${cur.pending}件` : ''}${cur.missing ? `・記録なし ${cur.missing}件` : ''}。リーチ率はフォロワー数の記録がある日の投稿のみ。</div>
+    <div class="kpis">
+      ${kp.map((k) => {
+        const vals = cur.stats.map((r) => r[k.k]);
+        return kpi({ label: k.l + ' 中央値', value: median(vals), kind: k.kind, digits: k.digits, prev: prev ? median(prev.stats.map((r) => r[k.k])) : undefined, sub: k.sub, n: nOf(vals), primary: k.primary });
+      }).join('')}
+    </div>
+    <div class="grid">
+      ${card('p_scatter', 'リーチ × ER', '破線は中央値。右上=広く届いて反応も良い投稿(横軸は対数)')}
+      ${card('p_trend', '投稿ごとのリーチ率', '投稿日順。破線は中央値')}
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <h2>曜日 × 時間帯</h2>
+      <div class="desc">各セルは中央値(下段は件数)。件数2未満はグレー。期間を「全期間」にすると件数が増えます。</div>
+      <div class="subbar">${seg('heat', [{ v: 'reachRate', l: 'リーチ率' }, { v: 'shareRate', l: 'シェア率' }, { v: 'er', l: 'ER' }], '指標')}</div>
+      ${heatmap(cur.stats, state.heat)}
+    </div>
+    <div class="card"><h2>投稿一覧</h2><div class="desc">評価は表示中の投稿内でのリーチ率の四分位。列名クリックで並べ替え。</div>${postTable(cur)}</div>`;
+
+  // 散布図
+  const st = cur.stats.filter((r) => r.reach > 0 && r.er != null);
+  const types = state.fmt === 'all' ? ['リール', 'フィード'] : [state.fmt];
+  mk('p_scatter', {
+    type: 'scatter',
+    data: {
+      datasets: types.map((t, i) => {
+        const pts = st.filter((r) => r.type === t);
+        return { label: t, data: pts.map((r) => ({ x: r.reach, y: pct100(r.er), r })), backgroundColor: colors()[i], borderColor: css('--surface'), borderWidth: 2, pointRadius: 5, pointHoverRadius: 7 };
+      }).filter((d) => d.data.length),
+    },
+    plugins: [medianLines],
+    options: baseOpts({
+      interaction: { mode: 'nearest', intersect: true },
+      scales: scales({ xType: 'logarithmic', xGrid: true, xTitle: 'リーチ', yTitle: 'ER(%)', yFmt: pctTick,
+        xFmt: (val) => (Number.isInteger(Math.log10(val)) ? fmt(val) : '') }),
       plugins: {
-        legend: { display: false },
-        tooltip: { mode: 'index', intersect: false, callbacks: { afterLabel: (c) => (isEst(ff[c.dataIndex]) ? '推定値' : '実測値') } },
+        legend: legend(types.length > 1),
+        medianLines: { x: median(st.map((r) => r.reach)), y: pct100(median(st.map((r) => r.er))), color: css('--muted') },
+        tooltip: { callbacks: {
+          title: (items) => items[0].raw.r.ts + ' ' + items[0].raw.r.type,
+          label: (c) => [`リーチ ${fmt(c.raw.x)} / ER ${c.raw.y.toFixed(2)}%`, String(c.raw.r.caption).slice(0, 30)],
+        } },
       },
     }),
-  }));
-  const L = acc.map((r) => dateOf(r, '日付'));
-  line('c2', L, [{ label: 'リーチ', data: acc.map((r) => num(r['リーチ'])) }, { label: '閲覧数', data: acc.map((r) => num(r['閲覧数'])) }]);
-  line('c3', L, [{ label: 'いいね', data: acc.map((r) => num(r['いいね'])) }, { label: 'コメント', data: acc.map((r) => num(r['コメント'])) }, { label: '保存', data: acc.map((r) => num(r['保存'])) }]);
-  bar('c4', L, [{ label: 'フォロー増', data: acc.map((r) => num(r['フォロー増'])) }, { label: 'フォロー解除', data: acc.map((r) => num(r['フォロー解除'])) }]);
-}
-
-/* ---------- 投稿 ---------- */
-function posts(v) {
-  const feed = inRange(DATA.feed, '投稿日時'), reels = inRange(DATA.reels, '投稿日時');
-  const avg = (rows, k) => (rows.length ? sum(rows, k) / rows.length : null);
-  v.innerHTML = `
-    <div class="kpis">
-      ${kpi('フィード投稿数', fmt(feed.length))}
-      ${kpi('フィード平均リーチ', fmt(avg(feed, 'リーチ')))}
-      ${kpi('リール数', fmt(reels.length))}
-      ${kpi('リール平均閲覧数', fmt(avg(reels, '閲覧数')))}
-      ${kpi('リール平均視聴時間(秒)', fmt(avg(reels, '平均視聴時間(秒)')))}
-    </div>
-    <div class="grid">
-      ${chartCard('c1', 'フィード: 投稿ごとのリーチ', '古い順')}
-      ${chartCard('c2', 'リール: 投稿ごとの閲覧数', '古い順')}
-    </div>
-    <div class="card" style="margin-bottom:12px"><h2>フィード投稿</h2>
-      ${table(feed, [
-        { k: '投稿日時', l: '投稿日時', f: (r) => esc(String(r['投稿日時']).slice(0, 16)) },
-        { k: 'キャプション', l: '投稿', f: media, cap: true }, { k: '種類', l: '種類', f: (r) => esc(r['種類'] || '') },
-        { k: '閲覧数', l: '閲覧' }, { k: 'リーチ', l: 'リーチ' }, { k: 'いいね', l: 'いいね' }, { k: 'コメント', l: 'コメント' },
-        { k: '保存', l: '保存' }, { k: 'シェア', l: 'シェア' }, { k: 'フォロー', l: 'フォロー' }, { k: 'プロフィール訪問', l: 'プロフ訪問' },
-        { k: 'URL', l: '', f: link },
-      ], 'feed')}</div>
-    <div class="card"><h2>リール</h2>
-      ${table(reels, [
-        { k: '投稿日時', l: '投稿日時', f: (r) => esc(String(r['投稿日時']).slice(0, 16)) },
-        { k: 'キャプション', l: '投稿', f: media, cap: true },
-        { k: '閲覧数', l: '閲覧' }, { k: 'リーチ', l: 'リーチ' }, { k: 'いいね', l: 'いいね' }, { k: 'コメント', l: 'コメント' },
-        { k: '保存', l: '保存' }, { k: 'シェア', l: 'シェア' }, { k: '平均視聴時間(秒)', l: '平均視聴(秒)' }, { k: '合計視聴時間(秒)', l: '合計視聴(秒)' },
-        { k: 'URL', l: '', f: link },
-      ], 'reels')}</div>`;
-  const byDate = (rows) => rows.slice().sort((a, b) => String(a['投稿日時']).localeCompare(String(b['投稿日時']))).slice(-40);
-  const f = byDate(feed), r = byDate(reels);
-  bar('c1', f.map((x) => dateOf(x, '投稿日時')), [{ label: 'リーチ', data: f.map((x) => num(x['リーチ'])) }]);
-  bar('c2', r.map((x) => dateOf(x, '投稿日時')), [{ label: '閲覧数', data: r.map((x) => num(x['閲覧数'])) }]);
-}
-
-/* ---------- ストーリーズ ---------- */
-function stories(v) {
-  const st = inRange(DATA.stories, '投稿日時').sort((a, b) => String(a['投稿日時']).localeCompare(String(b['投稿日時'])));
-  const nav = (k) => sum(st, k);
-  const exitRate = nav('次へ') + nav('戻る') + nav('終了') + nav('次のアカウントへ');
-  v.innerHTML = `
-    <div class="kpis">
-      ${kpi('ストーリー数', fmt(st.length))}
-      ${kpi('平均閲覧数', fmt(st.length ? sum(st, '閲覧数') / st.length : null))}
-      ${kpi('平均リーチ', fmt(st.length ? sum(st, 'リーチ') / st.length : null))}
-      ${kpi('返信合計', fmt(sum(st, '返信')))}
-      ${kpi('離脱率', exitRate ? (((nav('終了') + nav('次のアカウントへ')) / exitRate) * 100).toFixed(1) + '%' : '–')}
-    </div>
-    <div class="grid">
-      ${chartCard('c1', 'ストーリーごとの閲覧数とリーチ', '古い順(直近40件)')}
-      ${chartCard('c2', 'タップ操作の合計', '次へ / 戻る / 終了 / 次のアカウントへ')}
-    </div>
-    <div class="card"><h2>ストーリー一覧</h2>
-      ${table(st, [
-        { k: '投稿日時', l: '投稿日時', f: (r) => esc(String(r['投稿日時']).slice(0, 16)) },
-        { k: '曜日', l: '曜日', f: (r) => esc(r['曜日'] || '') },
-        { k: '閲覧数', l: '閲覧' }, { k: 'リーチ', l: 'リーチ' }, { k: '返信', l: '返信' }, { k: 'シェア', l: 'シェア' },
-        { k: 'フォロー', l: 'フォロー' }, { k: 'プロフィール訪問', l: 'プロフ訪問' },
-        { k: '次へ', l: '次へ' }, { k: '戻る', l: '戻る' }, { k: '終了', l: '終了' }, { k: '次のアカウントへ', l: '次のｱｶｳﾝﾄ' },
-        { k: 'URL', l: '', f: link },
-      ], 'stories')}</div>`;
-  const s = st.slice(-40);
-  bar('c1', s.map((x) => String(x['投稿日時']).slice(5, 16)), [{ label: '閲覧数', data: s.map((x) => num(x['閲覧数'])) }, { label: 'リーチ', data: s.map((x) => num(x['リーチ'])) }]);
-  bar('c2', ['次へ', '戻る', '終了', '次のアカウントへ'], [{ label: '回数', data: [nav('次へ'), nav('戻る'), nav('終了'), nav('次のアカウントへ')] }]);
-}
-
-/* ---------- オーディエンス ---------- */
-function audience(v) {
-  const a = DATA.audience;
-  if (!a.length) { v.innerHTML = '<div class="card empty">オーディエンスのデータがありません。フォロワー100人以上で syncAudience を実行すると取得されます。</div>'; return; }
-  const targets = ['フォロワー', 'エンゲージしたオーディエンス', 'リーチしたオーディエンス'];
-  const kinds = ['年齢層', '性別', '都市', '国'];
-  let html = '';
-  targets.forEach((t, ti) => {
-    html += `<h2 style="margin:16px 0 8px">${esc(t)}</h2><div class="grid">`;
-    kinds.forEach((k, ki) => {
-      const rows = a.filter((r) => r['対象'] === t && r['区分'] === k);
-      html += rows.length ? chartCard(`a${ti}_${ki}`, k, '人数') : `<div class="card"><h2>${k}</h2><div class="empty">データなし</div></div>`;
-    });
-    html += '</div>';
   });
-  v.innerHTML = html;
-  const ageOrder = (x) => parseInt(String(x['項目']), 10) || 0;
-  targets.forEach((t, ti) => kinds.forEach((k, ki) => {
-    let rows = a.filter((r) => r['対象'] === t && r['区分'] === k);
-    if (!rows.length) return;
-    rows = rows.slice().sort(k === '年齢層' ? (x, y) => ageOrder(x) - ageOrder(y) : (x, y) => num(y['人数']) - num(x['人数'])).slice(0, 10);
-    const label = (x) => ({ F: '女性', M: '男性', U: '不明' }[x['項目']] || x['項目']);
-    bar(`a${ti}_${ki}`, rows.map(label), [{ label: '人数', data: rows.map((x) => num(x['人数'])) }], k === '都市' || k === '国');
+
+  // 投稿ごとのリーチ率
+  const tr = cur.stats.filter((r) => r.reachRate != null).sort((a, b) => a.ts.localeCompare(b.ts));
+  const med = pct100(median(tr.map((r) => r.reachRate)));
+  mk('p_trend', {
+    type: 'bar',
+    data: {
+      labels: tr.map((r) => r.date.slice(5)),
+      datasets: [
+        barDs('リーチ率', tr.map((r) => pct100(r.reachRate)), 0),
+        { type: 'line', label: '中央値', data: tr.map(() => med), borderColor: css('--muted'), borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0 },
+      ],
+    },
+    options: baseOpts({
+      scales: scales({ yFmt: pctTick }),
+      plugins: { legend: legend(true), tooltip: { callbacks: { label: pctLabel, afterTitle: (it) => (tr[it[0].dataIndex] ? tr[it[0].dataIndex].type + ' ' + String(tr[it[0].dataIndex].caption).slice(0, 24) : '') } } },
+    }),
+  });
+}
+
+const DOWS = [[1, '月'], [2, '火'], [3, '水'], [4, '木'], [5, '金'], [6, '土'], [0, '日']];
+const HOURS = [[0, 6, '0-6時'], [6, 9, '6-9時'], [9, 12, '9-12時'], [12, 15, '12-15時'], [15, 18, '15-18時'], [18, 21, '18-21時'], [21, 24, '21-24時']];
+function heatmap(rows, k) {
+  const cells = DOWS.map(([d]) => HOURS.map(([h0, h1]) => {
+    const vals = rows.filter((r) => r.dow === d && r.hour >= h0 && r.hour < h1).map((r) => r[k]);
+    return { v: median(vals), n: nOf(vals) };
   }));
+  const valid = cells.flat().filter((c) => c.n >= 2 && c.v != null).map((c) => c.v);
+  if (!valid.length) return '<div class="empty">比較できるセルがありません(各セル2件以上が必要)</div>';
+  const lo = Math.min(...valid), hi = Math.max(...valid);
+  const head = '<tr><td class="h"></td>' + HOURS.map((h) => `<td class="h" style="text-align:center">${h[2]}</td>`).join('') + '</tr>';
+  const body = DOWS.map(([, name], i) => '<tr><td class="h">' + name + '</td>' + cells[i].map((c, j) => {
+    const title = `${name} ${HOURS[j][2]}: 中央値 ${pct(c.v)} / ${c.n}件`;
+    if (c.n < 2 || c.v == null) return `<td class="low" title="${esc(title)}">${c.n ? pct(c.v) : '–'}<span class="n">${c.n}件</span></td>`;
+    const t = hi > lo ? (c.v - lo) / (hi - lo) : 0.5;
+    const strong = t > 0.55;
+    return `<td title="${esc(title)}" style="background:color-mix(in oklab, var(--s1) ${Math.round(10 + t * 75)}%, var(--surface));color:${strong ? '#fff' : 'var(--text)'}">${pct(c.v)}<span class="n">${c.n}件</span></td>`;
+  }).join('') + '</tr>').join('');
+  return `<div class="table-wrap"><table class="heat">${head}${body}</table></div>`;
+}
+
+function postTable(cur) {
+  const q75 = quantile(cur.stats.map((r) => r.reachRate), 0.75), q25 = quantile(cur.stats.map((r) => r.reachRate), 0.25);
+  const rows = cur.rows.map((r) => Object.assign({}, r, {
+    grade: !r.stat ? '集計中' : r.reachRate == null || q75 == null ? '' : r.reachRate >= q75 ? '上位25%' : r.reachRate <= q25 ? '下位25%' : '',
+    age: Math.floor(r.ageDays),
+  }));
+  const badge = (r) => (r.grade ? `<span class="badge ${r.grade === '上位25%' ? 'top' : r.grade === '集計中' ? 'pending' : ''}">${r.grade}</span>` : '');
+  return table(rows, [
+    { k: 'grade', l: '評価', type: 'text', f: badge },
+    { k: 'ts', l: '投稿日時', type: 'text' },
+    { k: 'caption', l: '投稿', type: 'text', f: mediaCell, cls: 'cap' },
+    { k: 'type', l: '形式', type: 'text' },
+    { k: 'age', l: '経過日' },
+    { k: 'reach', l: 'リーチ' },
+    { k: 'reachRate', l: 'リーチ率', type: 'rate' },
+    { k: 'shareRate', l: 'シェア率', type: 'rate' },
+    { k: 'er', l: 'ER(リーチ)', type: 'rate' },
+    { k: 'erF', l: 'ER(フォロワー)', type: 'rate' },
+    { k: 'saveRate', l: '保存率', type: 'rate' },
+    { k: 'likeRate', l: 'いいね率', type: 'rate' },
+    { k: 'pvRate', l: 'プロフ訪問率', type: 'rate' },
+    { k: 'follows', l: 'フォロー' },
+    { k: 'watch', l: '平均視聴(秒)', digits: 1 },
+    { k: '', l: '', f: linkCell },
+  ], 'posts', { k: 'reachRate', dir: -1 });
+}
+
+/* ===================== ストーリーズ ===================== */
+function storyStats(w) {
+  const days = P.storyDays.filter((d) => inWin(d.date, w));
+  const items = days.flatMap((d) => d.items);
+  return { days, items };
+}
+function stories(v) {
+  const w = win(state.days, 0, true), pw = state.days ? win(state.days, 1, true) : null;
+  const cur = storyStats(w), prev = pw ? storyStats(pw) : null;
+  const kp =(label, f, kind, sub, primary, fromItems) => {
+    const vals = fromItems ? cur.items.map(f) : cur.days.map(f);
+    const pvv = prev ? median(fromItems ? prev.items.map(f) : prev.days.map(f)) : undefined;
+    return kpi({ label, value: median(vals), kind, prev: pvv, sub, n: nOf(vals), primary });
+  };
+  v.innerHTML = `
+    <div class="note">1日の連続投稿を1シーケンスとして集計。完走率 = 最後のリーチ ÷ 1枚目のリーチ、離脱率 = 終了 ÷ 閲覧(1枚目は構造的に高くなるため位置別に比較)。</div>
+    <div class="kpis">
+      ${kpi({ label: '投稿日数', value: cur.days.length, kind: 'count', prev: prev ? prev.days.length : undefined, sub: `合計 ${cur.items.length}枚・1日平均 ${fmt(div(cur.items.length, cur.days.length), 1)}枚` })}
+      ${kp('1枚目リーチ 中央値', (d) => d.firstReach, 'count', 'ユニーク数', true)}
+      ${kp('1枚目リーチ率 中央値', (d) => d.firstReachRate, 'rate', '1枚目リーチ ÷ フォロワー', true)}
+      ${kp('完走率 中央値', (d) => d.completion, 'rate', '2枚以上の日のみ')}
+      ${kp('1枚目離脱率 中央値', (d) => d.firstExit, 'rate', '終了 ÷ 閲覧')}
+      ${kp('返信率 中央値', (s) => s.replyRate, 'rate', '返信 ÷ リーチ(全ストーリー)', false, true)}
+    </div>
+    <div class="grid">
+      ${card('s_ret', '何枚目まで残るか(残存率)', '1枚目のリーチを100%とした各位置のリーチ(中央値)')}
+      ${card('s_exit', '何枚目で離脱するか(離脱率)', '位置ごとの 終了 ÷ 閲覧(中央値)')}
+      ${card('s_reach', '日ごとの1枚目リーチ', '')}
+      ${card('s_comp', '日ごとの完走率', '2枚以上の日のみ')}
+      ${card('s_nav', 'タップ操作の構成比', '日ごとの 次へ / 戻る / 終了 / 次のアカウントへ の割合')}
+    </div>
+    <div class="card"><h2>ストーリー一覧</h2>${table(cur.items.map((s) => Object.assign({}, s)), [
+      { k: 'ts', l: '投稿日時', type: 'text' },
+      { k: 'pos', l: '枚目' },
+      { k: 'views', l: '閲覧' },
+      { k: 'reach', l: 'リーチ' },
+      { k: 'retention', l: '残存率', type: 'rate' },
+      { k: 'exitRate', l: '離脱率', type: 'rate' },
+      { k: 'backRate', l: '戻る率', type: 'rate' },
+      { k: 'replies', l: '返信' },
+      { k: 'shares', l: 'シェア' },
+      { k: 'pv', l: 'プロフ訪問' },
+      { k: 'follows', l: 'フォロー' },
+      { k: '', l: '', f: linkCell },
+    ], 'stories', { k: 'ts', dir: -1 })}</div>`;
+
+  // 位置別(最大10枚目)
+  const maxPos = Math.min(10, Math.max(0, ...cur.days.map((d) => d.count)));
+  const pos = Array.from({ length: maxPos }, (_, i) => i + 1);
+  const at = (p, k) => cur.items.filter((s) => s.pos === p).map((s) => s[k]);
+  const nTip = (k) => ({ callbacks: { label: pctLabel, afterLabel: (c) => 'n=' + nOf(at(c.dataIndex + 1, k)) } });
+  mk('s_ret', {
+    type: 'line',
+    data: { labels: pos.map((p) => p + '枚目'), datasets: [lineDs('残存率', pos.map((p) => pct100(median(at(p, 'retention')))), 0)] },
+    options: baseOpts({ scales: scales({ yFmt: pctTick, yMax: 100 }), plugins: { legend: legend(false), tooltip: nTip('retention') } }),
+  });
+  mk('s_exit', {
+    type: 'bar',
+    data: { labels: pos.map((p) => p + '枚目'), datasets: [barDs('離脱率', pos.map((p) => pct100(median(at(p, 'exitRate')))), 0)] },
+    options: baseOpts({ scales: scales({ yFmt: pctTick }), plugins: { legend: legend(false), tooltip: nTip('exitRate') } }),
+  });
+  const D = cur.days;
+  mk('s_reach', {
+    type: 'bar',
+    data: { labels: D.map((d) => d.date.slice(5)), datasets: [barDs('1枚目リーチ', D.map((d) => d.firstReach), 0)] },
+    options: baseOpts({ scales: scales(), plugins: { legend: legend(false), tooltip: { callbacks: { afterLabel: (c) => D[c.dataIndex].count + '枚投稿' } } } }),
+  });
+  mk('s_comp', {
+    type: 'line',
+    data: { labels: D.map((d) => d.date.slice(5)), datasets: [lineDs('完走率', D.map((d) => pct100(d.completion)), 0)] },
+    options: baseOpts({ scales: scales({ yFmt: pctTick, yMax: 100 }), plugins: { legend: legend(false), tooltip: { callbacks: { label: pctLabel } } } }),
+  });
+  const navKeys = [['next', '次へ'], ['back', '戻る'], ['exit', '終了'], ['swipe', '次のアカウントへ']];
+  const share = (d, k) => {
+    const tot = navKeys.reduce((a, [kk]) => a + (sumOf(d.items, kk) || 0), 0);
+    return tot ? pct100((sumOf(d.items, k) || 0) / tot) : null;
+  };
+  mk('s_nav', {
+    type: 'bar',
+    data: { labels: D.map((d) => d.date.slice(5)), datasets: navKeys.map(([k, l], i) => barDs(l, D.map((d) => share(d, k)), i, { borderRadius: 0, borderWidth: 2 })) },
+    options: baseOpts({ scales: scales({ stacked: true, yFmt: pctTick, yMax: 100 }), plugins: { legend: legend(true), tooltip: { callbacks: { label: pctLabel } } } }),
+  });
+}
+
+/* ===================== オーディエンス ===================== */
+const TARGETS = ['フォロワー', 'リーチしたオーディエンス', 'エンゲージしたオーディエンス'];
+const TARGET_SHORT = { 'フォロワー': 'フォロワー', 'リーチしたオーディエンス': 'リーチ層', 'エンゲージしたオーディエンス': 'エンゲージ層' };
+const GENDER = { F: '女性', M: '男性', U: '不明' };
+/** 区分ごとに { items:[項目], share: { 対象: { 項目: 構成比 } } } を作る。都市・国は上位10+その他。 */
+function composition(kind) {
+  const rows = P.audience.filter((r) => r['区分'] === kind);
+  const share = {};
+  TARGETS.forEach((t) => {
+    const rs = rows.filter((r) => r['対象'] === t);
+    const tot = rs.reduce((a, r) => a + (num(r['人数']) || 0), 0);
+    share[t] = {};
+    rs.forEach((r) => { share[t][r['項目']] = tot ? (num(r['人数']) || 0) / tot : null; });
+  });
+  let items = Array.from(new Set(rows.map((r) => r['項目'])));
+  const base = share['フォロワー'];
+  if (kind === '年齢層') items.sort((a, b) => (parseInt(a, 10) || 0) - (parseInt(b, 10) || 0));
+  else if (kind === '性別') items.sort((a, b) => ['F', 'M', 'U'].indexOf(a) - ['F', 'M', 'U'].indexOf(b));
+  else {
+    items.sort((a, b) => (base[b] || 0) - (base[a] || 0));
+    if (items.length > 10) {
+      const top = items.slice(0, 10);
+      TARGETS.forEach((t) => {
+        const other = Object.keys(share[t]).filter((k) => top.indexOf(k) === -1).reduce((a, k) => a + (share[t][k] || 0), 0);
+        share[t]['その他'] = other;
+      });
+      items = top.concat(['その他']);
+    }
+  }
+  return { items, share };
+}
+
+function audience(v) {
+  if (!P.audience.length) {
+    v.innerHTML = '<div class="card empty">オーディエンスのデータがありません。syncAudience を実行してください(フォロワー100人以上が必要)。</div>';
+    return;
+  }
+  const kinds = ['年齢層', '性別', '都市', '国'];
+  const comp = {};
+  kinds.forEach((k) => { comp[k] = composition(k); });
+  v.innerHTML = `
+    <div class="note">人数ではなく構成比(%)で、フォロワー・リーチ層・エンゲージ層を並べて比較。リーチ層・エンゲージ層は今月の集計です。</div>
+    <div class="grid">
+      ${card('a_age', '年齢層の構成比', '')}
+      ${card('a_gender', '性別の構成比', '')}
+    </div>
+    <div class="card" style="margin-bottom:12px"><h2>反応指数</h2>
+      <div class="desc">各層の構成比 ÷ フォロワーの構成比。1.2以上(▲)はフォロワー比で特に届いている/反応している層、0.8以下(▼)は弱い層。</div>
+      ${indexTable(comp)}
+    </div>
+    <div class="grid">
+      ${card('a_city', '都市の構成比', 'フォロワー上位10+その他')}
+      ${card('a_country', '国の構成比', 'フォロワー上位10+その他')}
+    </div>`;
+  const draw = (id, kind, horizontal) => {
+    const c = comp[kind];
+    const label = (x) => (kind === '性別' ? GENDER[x] || x : x);
+    mk(id, {
+      type: 'bar',
+      data: { labels: c.items.map(label), datasets: TARGETS.map((t, i) => barDs(TARGET_SHORT[t], c.items.map((x) => pct100(c.share[t][x])), i)) },
+      options: baseOpts({
+        indexAxis: horizontal ? 'y' : 'x',
+        scales: horizontal ? scales({ horizontal: true, yFmt: pctTick }) : scales({ yFmt: pctTick }),
+        plugins: { legend: legend(true), tooltip: { callbacks: { label: pctLabel } } },
+      }),
+    });
+  };
+  draw('a_age', '年齢層');
+  draw('a_gender', '性別');
+  draw('a_city', '都市', true);
+  draw('a_country', '国', true);
+  // 横棒は項目数に応じて高さを確保する
+  ['a_city', 'a_country'].forEach((id) => { const el = document.getElementById(id); if (el) el.parentElement.style.height = '380px'; });
+  charts.forEach((ch) => ch.resize());
+}
+
+function indexTable(comp) {
+  const mark = (x) => (x == null ? '–' : x.toFixed(2) + (x >= 1.2 ? ' ▲' : x <= 0.8 ? ' ▼' : ''));
+  const rows = [];
+  ['年齢層', '性別'].forEach((kind) => {
+    const c = comp[kind];
+    c.items.forEach((it) => {
+      const f = c.share['フォロワー'][it], r = c.share['リーチしたオーディエンス'][it], e = c.share['エンゲージしたオーディエンス'][it];
+      rows.push({ kind, item: kind === '性別' ? GENDER[it] || it : it, f, r, e, ri: div(r, f), ei: div(e, f) });
+    });
+  });
+  return `<div class="table-wrap"><table><thead><tr><th class="l">区分</th><th class="l">項目</th><th>フォロワー</th><th>リーチ層</th><th>エンゲージ層</th><th>リーチ指数</th><th>反応指数</th></tr></thead><tbody>` +
+    rows.map((x) => `<tr><td class="l">${esc(x.kind)}</td><td class="l">${esc(x.item)}</td><td>${pct(x.f)}</td><td>${pct(x.r)}</td><td>${pct(x.e)}</td><td>${mark(x.ri)}</td><td>${mark(x.ei)}</td></tr>`).join('') +
+    '</tbody></table></div>';
 }
 
 load();

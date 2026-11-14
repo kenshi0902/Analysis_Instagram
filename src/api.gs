@@ -58,26 +58,39 @@ function apiGetAll_(path, params) {
   return items;
 }
 
+/** 実行中に「この種類のメディアでは未対応」と判明した指標。{ kind: { metric: true } } */
+const UNSUPPORTED_METRICS_ = {};
+
 /**
  * メディアのインサイトを取得して { metric: value } で返す。
  * まとめて取得し、失敗したら1指標ずつ取得し直す(未対応の指標が混ざっていても取れる分は取る)。
+ * kind(REELS / FEED / STORY など)を渡すと、未対応と判明した指標を以降のメディアでは最初から外す
+ * (投稿数が多いときに、毎回個別取得に落ちて実行時間が膨らむのを防ぐ)。
  */
-function fetchInsightsSafe_(mediaId, metrics) {
+function fetchInsightsSafe_(mediaId, metrics, kind) {
+  const skip = UNSUPPORTED_METRICS_[kind || ''] || (UNSUPPORTED_METRICS_[kind || ''] = {});
+  const use = metrics.filter(function (m) { return !skip[m]; });
+  if (!use.length) return {};
   try {
-    return parseInsights_(apiGet_('/' + mediaId + '/insights', { metric: metrics.join(',') }).data);
+    return parseInsights_(apiGet_('/' + mediaId + '/insights', { metric: use.join(',') }).data);
   } catch (e) {
     console.warn('まとめ取得に失敗、個別取得に切り替え: ' + mediaId + ' / ' + e.message);
   }
   const result = {};
   let failed = 0;
-  metrics.forEach(function (m) {
+  use.forEach(function (m) {
     try {
       Object.assign(result, parseInsights_(apiGet_('/' + mediaId + '/insights', { metric: m }).data));
     } catch (e) {
       failed++;
+      // 指標名に起因するエラーだけを未対応扱いにする(古い投稿など、メディア側の理由の失敗は除く)
+      if (kind && e.apiCode === 100 && /metric/i.test(e.message)) {
+        skip[m] = true;
+        console.warn('未対応の指標として以降は除外: ' + m + ' (' + kind + ')');
+      }
     }
   });
-  if (failed) console.warn('取得できなかった指標: ' + failed + '/' + metrics.length + ' (' + mediaId + ')');
+  if (failed) console.warn('取得できなかった指標: ' + failed + '/' + use.length + ' (' + mediaId + ')');
   return result;
 }
 

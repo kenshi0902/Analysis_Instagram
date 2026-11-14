@@ -40,8 +40,15 @@ function runAll() {
   syncFollowers();
   syncStories();
   syncMedia();
-  syncAccountDaily();
+  syncAccountAll();
   syncAudience();
+}
+
+/** アカウント系の日次処理。順序に依存するため1つのトリガーでまとめて実行する。 */
+function syncAccountAll() {
+  syncAccountDaily();
+  syncAccountPeriods();
+  backfillFollowers(); // 反映が遅れていた日の純増が取れたら推定値を更新する(実測は上書きしない)
 }
 
 /** 初回用。過去分(投稿は全件、アカウントは30日分)をまとめて取得する。 */
@@ -50,6 +57,7 @@ function runBackfill() {
   syncStories();
   syncMediaBackfill();
   syncAccountBackfill();
+  syncAccountPeriodsBackfill();
   backfillFollowers();
   syncAudience();
 }
