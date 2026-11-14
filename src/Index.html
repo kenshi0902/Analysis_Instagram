@@ -32,6 +32,11 @@
   .bar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
   .bar .lbl { color: var(--muted); font-size: 12px; margin-right: 4px; }
   button { font: inherit; color: var(--text2); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px; cursor: pointer; }
+  tr.selectable { cursor: pointer; }
+  tr.selectable:hover td, tr.selectable:focus-visible td { background: var(--grid); }
+  tr.sel td { background: color-mix(in oklab, var(--s1) 18%, var(--surface)); }
+  tr.selectable:focus-visible { outline: 2px solid var(--s1); outline-offset: -2px; }
+  select { font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 8px; max-width: 100%; }
   button[aria-pressed="true"] { color: var(--text); border-color: var(--s1); box-shadow: inset 0 -2px 0 var(--s1); }
   .toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
   .subbar { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 12px; }
@@ -106,7 +111,7 @@ const TABS = [
 ];
 const RANGES = [{ v: 7, l: '7日' }, { v: 30, l: '30日' }, { v: 90, l: '90日' }, { v: 0, l: '全期間' }];
 const MIN_N = 5; // これ未満のサンプル数は参考値として薄く表示する
-const state = { tab: 'overview', days: 30, gran: 'day', fmt: 'all', point: 'cur', heat: 'reachRate', sort: {} };
+const state = { tab: 'overview', days: 30, gran: 'day', fmt: 'all', point: 'cur', heat: 'reachRate', storyView: 'seq', storyMetric: 'reach', storySel: 'all', sort: {} };
 let DATA = null, P = null, charts = [];
 
 /* ===================== ユーティリティ ===================== */
@@ -198,10 +203,23 @@ function prepare(d) {
   };
   const posts = d.feed.map((r) => post(r, 'フィード')).concat(d.reels.map((r) => post(r, 'リール')));
 
+  // ストーリーの時間推移(実行ごとのスナップショット)。IDはキー列から取り出す(18桁の丸め対策)
+  const storySnaps = {};
+  (d.storySnapshots || []).forEach((r) => {
+    const [id] = String(r['キー']).split('|');
+    const min = num(r['経過分']);
+    if (min == null) return;
+    (storySnaps[id] = storySnaps[id] || []).push({
+      h: min / 60, reach: num(r['リーチ']), views: num(r['閲覧数']), exit: num(r['終了']), replies: num(r['返信']),
+    });
+  });
+  Object.values(storySnaps).forEach((a) => a.sort((x, y) => x.h - y.h));
+
   // ストーリーズは「同じ日の連続投稿」を1シーケンスとして扱う
   const byDay = {};
   d.stories.forEach((r) => {
     const s = {
+      snaps: storySnaps[String(r['ストーリーID'])] || [],
       id: String(r['ストーリーID']), ts: String(r['投稿日時']).slice(0, 16), date: d10(r['投稿日時']), url: r['URL'] || '',
       views: num(r['閲覧数']), reach: num(r['リーチ']), replies: num(r['返信']), shares: num(r['シェア']),
       follows: num(r['フォロー']), pv: num(r['プロフィール訪問']),
@@ -284,26 +302,44 @@ document.addEventListener('click', (e) => {
     render();
   }
 });
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'storySel') { state.storySel = e.target.value; render(); }
+});
+// 一覧の行クリック(Enter キーでも可)でストーリーを選択する。リンクのクリックはそのまま開く
+const selectRow = (e) => {
+  const tr = e.target.closest('tr[data-select]');
+  if (!tr || e.target.closest('a')) return;
+  state.storySel = tr.dataset.select;
+  render();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+};
+document.addEventListener('click', selectRow);
+document.addEventListener('keydown', (e) => { if (e.key === 'Enter') selectRow(e); });
 document.getElementById('reload').addEventListener('click', load);
 
 /* ===================== 部品 ===================== */
-/** kind: 'rate' は差をpt、'count' は変化率で前期間比を出す */
-function deltaHtml(cur, prev, kind) {
+/**
+ * kind: 'rate' は差をpt、'count' は変化率で比較値との差を出す。
+ * label は比較の名前(既定は前期間比)。invert=true は小さいほど良い指標(到達時間など)で色の向きを反転する。
+ */
+function deltaHtml(cur, prev, kind, label, invert) {
+  label = label || '前期間比';
   if (prev === undefined) return '';
-  if (cur == null || prev == null || (kind !== 'rate' && !prev)) return '<div class="delta">前期間比 –</div>';
+  if (cur == null || prev == null || (kind !== 'rate' && !prev)) return `<div class="delta">${esc(label)} –</div>`;
   let d, txt;
   if (kind === 'rate') { d = (cur - prev) * 100; txt = (d > 0 ? '+' : '') + d.toFixed(Math.abs(d) < 0.1 ? 2 : 1) + 'pt'; }
   else { d = (cur - prev) / prev; txt = (d > 0 ? '+' : '') + (d * 100).toFixed(1) + '%'; }
-  const cls = d > 0 ? 'up' : d < 0 ? 'down' : '';
-  return `<div class="delta ${cls}">${d > 0 ? '▲' : d < 0 ? '▼' : '±'} ${txt} <span style="color:var(--muted)">前期間比</span></div>`;
+  const good = invert ? d < 0 : d > 0, bad = invert ? d > 0 : d < 0;
+  const cls = good ? 'up' : bad ? 'down' : '';
+  return `<div class="delta ${cls}">${d > 0 ? '▲' : d < 0 ? '▼' : '±'} ${txt} <span style="color:var(--muted)">${esc(label)}</span></div>`;
 }
-/** o: { label, value, kind, prev, sub, n, primary } */
+/** o: { label, value, kind, prev, prevLabel, invert, sub, n, primary, text } text を渡すと数値の代わりに表示する */
 function kpi(o) {
-  const v = o.kind === 'rate' ? pct(o.value) : fmt(o.value, o.digits);
+  const v = o.text != null ? esc(o.text) : o.kind === 'rate' ? pct(o.value) : fmt(o.value, o.digits);
   const weak = o.n != null && o.n < MIN_N;
   const sub = [o.sub, o.n != null ? 'n=' + o.n + (weak ? '(少)' : '') : ''].filter(Boolean).join(' · ');
   return `<div class="card kpi${o.primary ? ' primary' : ''}${weak ? ' weak' : ''}"><div class="label">${esc(o.label)}</div>` +
-    `<div class="value">${v}</div>${deltaHtml(o.value, o.prev, o.kind)}${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div>`;
+    `<div class="value">${v}</div>${deltaHtml(o.value, o.prev, o.kind, o.prevLabel, o.invert)}${sub ? `<div class="sub">${esc(sub)}</div>` : ''}</div>`;
 }
 function card(id, title, desc, cls) {
   return `<div class="card ${cls || ''}"><h2>${esc(title)}</h2><div class="desc">${esc(desc || '')}</div><div class="chart"><canvas id="${id}"></canvas></div></div>`;
@@ -365,7 +401,9 @@ function table(rows, cols, key, def) {
     return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * s.dir;
   }).slice(0, 300);
   const head = cols.map((c) => `<th class="${c.type === 'text' ? 'l' : ''}"${c.k ? ` data-sort="${key}|${c.k}"` : ''}>${esc(c.l)}${s.k === c.k ? (s.dir < 0 ? ' ▼' : ' ▲') : ''}</th>`).join('');
-  const body = sorted.map((r) => '<tr>' + cols.map((c) => {
+  // 行に _select(選択用ID)があればクリックで選択でき、_selected の行を強調する
+  const body = sorted.map((r) => (r._select != null
+    ? `<tr data-select="${esc(r._select)}" class="selectable${r._selected ? ' sel' : ''}" tabindex="0">` : '<tr>') + cols.map((c) => {
     const v = c.f ? c.f(r) : c.type === 'rate' ? pct(r[c.k]) : c.type === 'text' ? esc(r[c.k]) : fmt(r[c.k], c.digits);
     return `<td class="${c.cls || (c.type === 'text' ? 'l' : '')}">${v}</td>`;
   }).join('') + '</tr>').join('');
@@ -693,12 +731,14 @@ function storyStats(w) {
 function stories(v) {
   const w = win(state.days, 0, true), pw = state.days ? win(state.days, 1, true) : null;
   const cur = storyStats(w), prev = pw ? storyStats(pw) : null;
-  const kp =(label, f, kind, sub, primary, fromItems) => {
+  const viewSeg = `<div class="subbar">${seg('storyView', [{ v: 'seq', l: '日別シーケンス' }, { v: 'hourly', l: '投稿からの時間推移' }], '表示')}</div>`;
+  if (state.storyView === 'hourly') { storiesHourly(v, cur, prev, viewSeg); return; }
+  const kp = (label, f, kind, sub, primary, fromItems) => {
     const vals = fromItems ? cur.items.map(f) : cur.days.map(f);
     const pvv = prev ? median(fromItems ? prev.items.map(f) : prev.days.map(f)) : undefined;
     return kpi({ label, value: median(vals), kind, prev: pvv, sub, n: nOf(vals), primary });
   };
-  v.innerHTML = `
+  v.innerHTML = viewSeg + `
     <div class="note">1日の連続投稿を1シーケンスとして集計。完走率 = 最後のリーチ ÷ 1枚目のリーチ、離脱率 = 終了 ÷ 閲覧(1枚目は構造的に高くなるため位置別に比較)。</div>
     <div class="kpis">
       ${kpi({ label: '投稿日数', value: cur.days.length, kind: 'count', prev: prev ? prev.days.length : undefined, sub: `合計 ${cur.items.length}枚・1日平均 ${fmt(div(cur.items.length, cur.days.length), 1)}枚` })}
@@ -765,6 +805,218 @@ function stories(v) {
     type: 'bar',
     data: { labels: D.map((d) => d.date.slice(5)), datasets: navKeys.map(([k, l], i) => barDs(l, D.map((d) => share(d, k)), i, { borderRadius: 0, borderWidth: 2 })) },
     options: baseOpts({ scales: scales({ stacked: true, yFmt: pctTick, yMax: 100 }), plugins: { legend: legend(true), tooltip: { callbacks: { label: pctLabel } } } }),
+  });
+}
+
+/* ===================== ストーリーズ: 投稿からの時間推移 ===================== */
+const STORY_DONE_H = 20; // 最後の取得がこの時間以降なら「完了」とみなす(24時間で取得できなくなるため)
+const HOUR_AXIS = Array.from({ length: 25 }, (_, i) => i);
+const hexA = (hex, a) => {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim());
+  if (!m) return hex;
+  const n = parseInt(m[1], 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+};
+
+/**
+ * 投稿から h 時間後の値。取得時刻はストーリーごとにずれるため、前後のスナップショットを直線補間する
+ * (投稿時点は0とみなす)。最後の取得より後は、完了したストーリーなら最終値、それ以外は不明(null)。
+ */
+function valAt(pts, h, k) {
+  if (!pts.length || h < 0) return null;
+  const last = pts[pts.length - 1];
+  if (h >= last.h) return h === last.h || last.h >= STORY_DONE_H ? last[k] : null;
+  let prev = { h: 0, v: 0 };
+  for (const p of pts) {
+    if (p.h >= h) {
+      const span = p.h - prev.h;
+      return span > 0 ? prev.v + ((p[k] - prev.v) * (h - prev.h)) / span : p[k];
+    }
+    prev = { h: p.h, v: p[k] };
+  }
+  return null;
+}
+
+function hourly(s, k) {
+  const pts = (s.snaps || []).filter((p) => p[k] != null);
+  const last = pts[pts.length - 1];
+  const done = !!last && last.h >= STORY_DONE_H;
+  const final = done ? last[k] : null;
+  const at = (h) => valAt(pts, h, k);
+  const timeTo = (frac) => {
+    if (!final) return null;
+    for (let h = 0.25; h <= 24; h += 0.25) { const x = at(h); if (x != null && x >= frac * final) return h; }
+    return null;
+  };
+  return {
+    pts, done, final, at, lastH: last ? last.h : null,
+    h1: at(1), h3: at(3), h6: at(6), h12: at(12), t50: timeTo(0.5), t80: timeTo(0.8), share6: div(at(6), final),
+  };
+}
+
+function storiesHourly(v, cur, prev, viewSeg) {
+  const k = state.storyMetric, kl = k === 'reach' ? 'リーチ' : '閲覧数';
+  const list = cur.items.filter((s) => s.snaps.length).map((s) => Object.assign({}, s, { hs: hourly(s, k) }));
+  const metricSeg = seg('storyMetric', [{ v: 'reach', l: 'リーチ' }, { v: 'views', l: '閲覧数' }], '指標');
+  if (!list.length) {
+    v.innerHTML = viewSeg + `<div class="subbar">${metricSeg}</div>` +
+      '<div class="card empty">時間推移のデータがまだありません。syncStories を1時間おきに実行すると、導入後のストーリーから投稿ごとの推移が溜まります。</div>';
+    return;
+  }
+  const done = list.filter((s) => s.hs.done);
+  const sorted = list.slice().sort((a, b) => b.ts.localeCompare(a.ts));
+  if (state.storySel !== 'all' && !sorted.some((s) => s.id === state.storySel)) state.storySel = 'all';
+  // focus: 「対象」で選んだストーリー(全体表示なら null)。base: 比較に使う平常(focus 以外の完了ストーリー)
+  const focus = state.storySel === 'all' ? null : sorted.find((s) => s.id === state.storySel);
+  const base = done.filter((s) => !focus || s.id !== focus.id);
+  // ④に出すストーリー。全体表示では最新の完了ストーリー(公開直後は取得回数が少なく比較にならないため)
+  const sel = focus || sorted.find((s) => s.hs.done) || sorted[0];
+  const label = (s) => `${s.ts}(${s.pos}枚目)${s.hs.done ? '' : ' 集計中'}`;
+  const bucketOf = (s) => {
+    const hh = new Date(parseTs(s.ts).getTime() + 9 * 3600000).getUTCHours();
+    return HOURS.findIndex(([h0, h1]) => hh >= h0 && hh < h1);
+  };
+
+  const selector = `<div class="bar"><span class="lbl">対象</span><select id="storySel" aria-label="対象のストーリー">` +
+    `<option value="all"${focus ? '' : ' selected'}>全ストーリー(中央値)</option>` +
+    sorted.map((s) => `<option value="${esc(s.id)}"${focus && s.id === focus.id ? ' selected' : ''}>${esc(label(s))}</option>`).join('') +
+    '</select></div>';
+
+  let kpis, note;
+  if (!focus) {
+    const pDone = prev ? prev.items.filter((s) => s.snaps.length).map((s) => hourly(s, k)).filter((h) => h.done) : null;
+    const kpH = (lbl, f, kind, sub, primary, digits, invert) => {
+      const vals = done.map((s) => f(s.hs));
+      return kpi({ label: lbl, value: median(vals), kind, digits, invert, prev: pDone ? median(pDone.map(f)) : undefined, sub, n: nOf(vals), primary });
+    };
+    note = `syncStories の実行ごと(約1時間おき)の値から、投稿後の各時点を直線補間して比較しています。最後の取得が投稿後${STORY_DONE_H}時間以降のストーリーを「完了」として中央値に使います(集計中 ${list.length - done.length}件)。「対象」でストーリーを選ぶか、一覧の行をクリックすると、そのストーリー単体の値に切り替わります。`;
+    kpis = [
+      kpi({ label: '対象ストーリー', value: done.length, kind: 'count', prev: pDone ? pDone.length : undefined, sub: '完了分' }),
+      kpH('最終' + kl + ' 中央値', (h) => h.final, 'count', '投稿後24時間時点', true),
+      kpH('1時間後の' + kl + ' 中央値', (h) => h.h1, 'count', '立ち上がりの速さ', true),
+      kpH('6時間後の到達率 中央値', (h) => h.share6, 'rate', '6時間後 ÷ 最終'),
+      kpH('50%到達 中央値', (h) => h.t50, 'count', '時間(最終値の半分に達するまで)', false, 1, true),
+      kpH('80%到達 中央値', (h) => h.t80, 'count', '時間', false, 1, true),
+    ].join('');
+  } else {
+    const h = focus.hs, cmp = '平常比';
+    const medOf = (f) => median(base.map((s) => f(s.hs)));
+    const last = h.pts[h.pts.length - 1];
+    const nowVal = h.done ? h.final : last[k];
+    const nowMed = h.done ? medOf((x) => x.final) : median(base.map((s) => s.hs.at(h.lastH)));
+    const pending = h.done ? '' : '(完了後に表示)';
+    note = `選択中のストーリー(${focus.ts}・${focus.pos}枚目)を、ほかの完了ストーリー${base.length}件の中央値(平常)と比べています。各時点の値は前後の取得値からの補間値です。「投稿時刻別の6時間後リーチ」は複数のストーリーを比べる指標のため、全体のまま表示し、選択中の時間帯を強調します。`;
+    kpis = [
+      kpi({ label: '状態', text: h.done ? '完了' : '集計中', sub: `${focus.ts}・${focus.pos}枚目・取得${h.pts.length}回` }),
+      kpi({ label: h.done ? '最終' + kl : `現在の${kl}(${fmt(h.lastH, 1)}h時点)`, value: nowVal, kind: 'count', prev: nowMed, prevLabel: cmp, sub: '平常 ' + fmt(nowMed), primary: true }),
+      kpi({ label: '1時間後の' + kl, value: h.h1, kind: 'count', prev: medOf((x) => x.h1), prevLabel: cmp, sub: '平常 ' + fmt(medOf((x) => x.h1)), primary: true }),
+      kpi({ label: '6時間後の到達率', value: h.share6, kind: 'rate', prev: medOf((x) => x.share6), prevLabel: cmp, sub: '平常 ' + pct(medOf((x) => x.share6)) + pending }),
+      kpi({ label: '50%到達', value: h.t50, kind: 'count', digits: 1, invert: true, prev: medOf((x) => x.t50), prevLabel: cmp, sub: '時間・平常 ' + fmt(medOf((x) => x.t50), 1) + pending }),
+      kpi({ label: '80%到達', value: h.t80, kind: 'count', digits: 1, invert: true, prev: medOf((x) => x.t80), prevLabel: cmp, sub: '時間・平常 ' + fmt(medOf((x) => x.t80), 1) + pending }),
+    ].join('');
+  }
+
+  const curveDesc = !focus ? '最終値を100%としたときの各時点の割合。線は中央値、帯は25〜75%の範囲'
+    : focus.hs.done ? '最終値を100%としたときの各時点の割合。実線が選択中、破線と帯が平常(中央値と25〜75%の範囲)'
+      : '選択中は集計中で最終値が未確定のため、平常(中央値と25〜75%の範囲)のみ表示';
+  const incDesc = !focus ? '各時間帯に増えた' + kl + '(中央値)。いつ見られているか'
+    : '選択中のストーリーが各時間帯に増えた' + kl + '(棒)と平常の中央値(破線)';
+  const selDesc = focus ? '選択中のストーリーの実測値(点)と、平常の中央値を比べます'
+    : `最新の完了ストーリー(${label(sel)})を表示しています。「対象」で切り替えられます`;
+  const postDesc = '全ストーリーの比較。経過時間を6時間に揃えて投稿時刻を比較(中央値)' +
+    (focus && bucketOf(focus) >= 0 ? `。選択中は ${HOURS[bucketOf(focus)][2]} の投稿` : '');
+
+  v.innerHTML = viewSeg + `<div class="subbar">${selector}${metricSeg}</div>
+    <div class="note">${esc(note)}</div>
+    <div class="kpis">${kpis}</div>
+    <div class="grid">
+      ${card('sh_curve', '到達曲線', curveDesc)}
+      ${card('sh_inc', '1時間ごとの新規' + kl, incDesc)}
+    </div>
+    <div class="grid">
+      ${card('sh_sel', 'ストーリー別の推移と平常ペース', selDesc)}
+      ${card('sh_post', '投稿時刻別の6時間後' + kl, postDesc)}
+    </div>
+    <div class="card"><h2>ストーリー別の時間推移</h2><div class="desc">行をクリックすると、そのストーリー単体の値に切り替わります。列名クリックで並べ替え。各時点の値は補間値です。</div>${table(list.map((s) => ({
+      _select: s.id, _selected: !!focus && s.id === focus.id,
+      ts: s.ts, pos: s.pos, url: s.url, h1: s.hs.h1, h3: s.hs.h3, h6: s.hs.h6, h12: s.hs.h12, final: s.hs.final,
+      t50: s.hs.t50, share6: s.hs.share6, samples: s.hs.pts.length, status: s.hs.done ? '完了' : '集計中(' + fmt(s.hs.lastH, 1) + 'h)',
+    })), [
+      { k: 'ts', l: '投稿日時', type: 'text' },
+      { k: 'pos', l: '枚目' },
+      { k: 'h1', l: '1h' }, { k: 'h3', l: '3h' }, { k: 'h6', l: '6h' }, { k: 'h12', l: '12h' },
+      { k: 'final', l: '最終' },
+      { k: 't50', l: '50%到達(h)', digits: 1 },
+      { k: 'share6', l: '6h到達率', type: 'rate' },
+      { k: 'samples', l: '取得回数' },
+      { k: 'status', l: '状態', type: 'text' },
+      { k: '', l: '', f: linkCell },
+    ], 'storyHourly', { k: 'ts', dir: -1 })}</div>`;
+
+  const c = colors();
+  const dashed = { borderDash: [5, 4], pointRadius: 0 };
+
+  // ② 到達曲線: 平常の中央値と25〜75%の帯。選択中が完了していれば実線で重ねる
+  const ratio = HOUR_AXIS.map((h) => base.map((s) => div(s.hs.at(h), s.hs.final)));
+  const bandColor = focus ? c[1] : c[0];
+  const curveSets = [
+    { label: '平常 75%点', data: ratio.map((r) => pct100(quantile(r, 0.75))), borderWidth: 0, pointRadius: 0, fill: false },
+    { label: '平常 25%点', data: ratio.map((r) => pct100(quantile(r, 0.25))), borderWidth: 0, pointRadius: 0, fill: '-1', backgroundColor: hexA(bandColor, 0.15) },
+    focus ? lineDs('平常(中央値)', ratio.map((r) => pct100(median(r))), 1, dashed) : lineDs('中央値', ratio.map((r) => pct100(median(r))), 0),
+  ];
+  if (focus && focus.hs.done) {
+    curveSets.push(lineDs('選択中', HOUR_AXIS.map((h) => pct100(div(focus.hs.at(h), focus.hs.final))), 0));
+  }
+  mk('sh_curve', {
+    type: 'line',
+    data: { labels: HOUR_AXIS.map((h) => h + 'h'), datasets: curveSets },
+    options: baseOpts({
+      scales: scales({ yFmt: pctTick, yMax: 100, xTicks: 13 }),
+      plugins: {
+        legend: Object.assign(legend(!!focus), { labels: Object.assign(legend(true).labels, { filter: (it) => !/%点$/.test(it.text) }) }),
+        tooltip: { filter: (it) => !/%点$/.test(it.dataset.label), callbacks: { label: pctLabel, afterBody: (it) => '平常 n=' + nOf(ratio[it[0].dataIndex]) } },
+      },
+    }),
+  });
+
+  // ③ 1時間ごとの新規: 全体は中央値の棒。選択中は選択中の棒+平常の中央値(破線)
+  const incOf = (s, h) => { const a = s.hs.at(h), b = s.hs.at(h - 1); return a == null || b == null ? null : a - b; };
+  const H = HOUR_AXIS.slice(1);
+  const incBase = H.map((h) => base.map((s) => incOf(s, h)));
+  const incSets = focus
+    ? [barDs('選択中', H.map((h) => incOf(focus, h)), 0), Object.assign(lineDs('平常(中央値)', incBase.map((r) => median(r)), 1, dashed), { type: 'line' })]
+    : [barDs('新規' + kl, incBase.map((r) => median(r)), 0)];
+  mk('sh_inc', {
+    type: 'bar',
+    data: { labels: H.map((h) => (h - 1) + '-' + h + 'h'), datasets: incSets },
+    options: baseOpts({ scales: scales({ xTicks: 12 }), plugins: { legend: legend(!!focus), tooltip: { callbacks: { afterBody: (it) => '平常 n=' + nOf(incBase[it[0].dataIndex]) } } } }),
+  });
+
+  // ④ 選択ストーリーの実測 vs 平常(選択中のストーリー自身は除く)
+  const others = done.filter((s) => s.id !== sel.id);
+  mk('sh_sel', {
+    type: 'line',
+    data: {
+      datasets: [
+        lineDs('選択中(実測)', sel.hs.pts.map((p) => ({ x: +p.h.toFixed(2), y: p[k] })), 0, { pointRadius: 3, tension: 0 }),
+        lineDs('平常(中央値)', HOUR_AXIS.map((h) => ({ x: h, y: median(others.map((s) => s.hs.at(h))) })), 1, dashed),
+      ],
+    },
+    options: baseOpts({
+      interaction: { mode: 'nearest', intersect: false },
+      scales: Object.assign(scales(), { x: { type: 'linear', min: 0, max: 24, ticks: { color: css('--text2'), stepSize: 3 }, grid: { display: false }, title: { display: true, text: '投稿からの経過時間(h)', color: css('--text2') } } }),
+      plugins: { legend: legend(true), tooltip: { callbacks: { title: (it) => it[0].parsed.x.toFixed(1) + 'h 後', label: (ctx) => `${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` } } },
+    }),
+  });
+
+  // ⑤ 投稿時刻別の6時間後の値(全ストーリーの比較)
+  const byHour = HOURS.map((_, i) => list.filter((s) => bucketOf(s) === i).map((s) => s.hs.h6));
+  const fb = focus ? bucketOf(focus) : -1;
+  mk('sh_post', {
+    type: 'bar',
+    data: { labels: HOURS.map((h) => h[2]), datasets: [barDs('6時間後の' + kl, byHour.map((r) => median(r)), 0,
+      { backgroundColor: HOURS.map((_, i) => (fb === -1 || i === fb ? c[0] : hexA(c[0], 0.35))) })] },
+    options: baseOpts({ scales: scales(), plugins: { legend: legend(false), tooltip: { callbacks: { afterLabel: (ctx) => 'n=' + nOf(byHour[ctx.dataIndex]) + (ctx.dataIndex === fb ? '(選択中のストーリーの時間帯)' : '') } } } }),
   });
 }
 

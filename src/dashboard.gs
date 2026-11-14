@@ -25,9 +25,18 @@ function readTable_(ss, table) {
   const values = sheet.getDataRange().getValues();
   const head = values[0];
   const idx = table.headers.filter(function (h) { return head.indexOf(h) !== -1; });
+  // 行が増え続けるテーブルは、直近 maxAgeDays 日分だけ返す(ブラウザへの転送量を抑える)
+  const dateCol = table.maxAgeDays ? head.indexOf(table.dateColumn) : -1;
+  const cutoff = dateCol !== -1
+    ? Utilities.formatDate(new Date(Date.now() - table.maxAgeDays * 86400000), TZ, 'yyyy-MM-dd') : '';
   const rows = [];
   for (let r = 1; r < values.length; r++) {
     if (values[r][head.indexOf(table.key)] === '') continue;
+    if (dateCol !== -1) {
+      const d = values[r][dateCol];
+      const ds = d instanceof Date ? Utilities.formatDate(d, TZ, 'yyyy-MM-dd') : String(d).slice(0, 10);
+      if (ds < cutoff) continue;
+    }
     const row = {};
     idx.forEach(function (h) {
       const v = values[r][head.indexOf(h)];
