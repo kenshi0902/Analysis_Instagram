@@ -19,6 +19,56 @@ function getDashboardData() {
   return out;
 }
 
+/** 保存済みのストーリー画像(元のサイズ)を data URL で返す。個別表示用。ブラウザから google.script.run で呼ぶ。 */
+function getStoryImage(fileId) {
+  const folderId = PropertiesService.getScriptProperties().getProperty('STORY_IMAGE_FOLDER_ID');
+  return toDataUrl_(storyImageFile_(fileId, folderId).getBlob());
+}
+
+/** 一覧のアイコン用。1回に返す最大件数(呼び出し側で分割して呼ぶ) */
+const STORY_THUMB_MAX = 30;
+const STORY_THUMB_FALLBACK_BYTES = 150000; // 縮小版がまだ無いとき、これ以下なら元画像を返す
+
+/**
+ * 保存済みのストーリー画像の縮小版を { ファイルID: data URL | null } で返す。ブラウザから google.script.run で呼ぶ。
+ * 縮小版はドライブが自動生成する(1枚数KB〜十数KB)。取得できないものは null(画面では「画像なし」の枠を出す)。
+ */
+function getStoryThumbnails(ids) {
+  if (!Array.isArray(ids)) throw new Error('ファイルIDの配列を渡してください');
+  const folderId = PropertiesService.getScriptProperties().getProperty('STORY_IMAGE_FOLDER_ID');
+  const out = {};
+  ids.slice(0, STORY_THUMB_MAX).forEach(function (id) {
+    try {
+      const file = storyImageFile_(id, folderId);
+      const thumb = file.getThumbnail();
+      if (thumb) out[id] = toDataUrl_(thumb);
+      else out[id] = file.getSize() <= STORY_THUMB_FALLBACK_BYTES ? toDataUrl_(file.getBlob()) : null;
+    } catch (e) {
+      out[id] = null;
+    }
+  });
+  return out;
+}
+
+/**
+ * ストーリー画像の保存フォルダ内のファイルだけを返す。
+ * ウェブアプリはオーナー権限で動くため、任意のファイルIDを渡されてもオーナーのドライブ上の他のファイルを読めないようにする。
+ */
+function storyImageFile_(fileId, folderId) {
+  if (!/^[\w-]{10,}$/.test(String(fileId))) throw new Error('不正なファイルIDです');
+  if (!folderId) throw new Error('ストーリー画像の保存フォルダがまだありません');
+  const file = DriveApp.getFileById(fileId);
+  const parents = file.getParents();
+  while (parents.hasNext()) {
+    if (parents.next().getId() === folderId) return file;
+  }
+  throw new Error('ストーリー画像の保存フォルダ外のファイルは表示できません');
+}
+
+function toDataUrl_(blob) {
+  return 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
+}
+
 function readTable_(ss, table) {
   const sheet = ss.getSheetByName(table.name);
   if (!sheet || sheet.getLastRow() < 2) return [];

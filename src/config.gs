@@ -8,6 +8,10 @@ const DEFAULT_API_VERSION = 'v23.0';
 
 const REQUIRED_PROPS = ['IG_ACCESS_TOKEN', 'IG_USER_ID', 'SPREADSHEET_ID'];
 
+// ストーリー画像の保存先(Google ドライブ)。フォルダIDはスクリプトプロパティ STORY_IMAGE_FOLDER_ID に保持し、
+// 未設定なら初回の保存時にこの名前でマイドライブ直下に作成する。
+const STORY_IMAGE_FOLDER_NAME = 'Instagram_ストーリー画像';
+
 /**
  * 書き込み先テーブルの定義。
  * - name: シート名
@@ -23,7 +27,7 @@ const TABLES = {
       '閲覧数', 'リーチ', '返信', 'シェア', 'インタラクション合計',
       'フォロー', 'プロフィール訪問',
       '次へ', '戻る', '終了', '次のアカウントへ',
-      '取得日時',
+      '取得日時', '画像ファイルID',
     ],
   },
   // ストーリーの時間推移。syncStories の実行ごとに追記する(キー: ストーリーID|投稿からの経過分)。
