@@ -32,6 +32,17 @@
   .bar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
   .bar .lbl { color: var(--muted); font-size: 12px; margin-right: 4px; }
   button { font: inherit; color: var(--text2); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 5px 11px; cursor: pointer; }
+  [hidden] { display: none !important; }
+  .focus-row { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 12px; margin-bottom: 16px; align-items: start; }
+  .focus-row .kpis { margin-bottom: 0; }
+  .story-img { padding: 10px; }
+  .story-img .frame { aspect-ratio: 9 / 16; width: 100%; background: var(--grid); border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; text-align: center; }
+  .story-img img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .story-img a { display: block; margin-top: 8px; font-size: 12px; color: var(--s1); }
+  @media (max-width: 640px) { .focus-row { grid-template-columns: 1fr; } .story-img { max-width: 200px; } }
+  .sthumb { display: inline-block; width: 24px; height: 43px; border-radius: 4px; overflow: hidden; vertical-align: middle; background: var(--grid); }
+  .sthumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .sthumb.none { background: repeating-linear-gradient(135deg, var(--grid) 0 4px, transparent 4px 8px); border: 1px dashed var(--border); }
   tr.selectable { cursor: pointer; }
   tr.selectable:hover td, tr.selectable:focus-visible td { background: var(--grid); }
   tr.sel td { background: color-mix(in oklab, var(--s1) 18%, var(--surface)); }
@@ -220,6 +231,7 @@ function prepare(d) {
   d.stories.forEach((r) => {
     const s = {
       snaps: storySnaps[String(r['ストーリーID'])] || [],
+      imageId: String(r['画像ファイルID'] || ''),
       id: String(r['ストーリーID']), ts: String(r['投稿日時']).slice(0, 16), date: d10(r['投稿日時']), url: r['URL'] || '',
       views: num(r['閲覧数']), reach: num(r['リーチ']), replies: num(r['返信']), shares: num(r['シェア']),
       follows: num(r['フォロー']), pv: num(r['プロフィール訪問']),
@@ -756,6 +768,7 @@ function stories(v) {
       ${card('s_nav', 'タップ操作の構成比', '日ごとの 次へ / 戻る / 終了 / 次のアカウントへ の割合')}
     </div>
     <div class="card"><h2>ストーリー一覧</h2>${table(cur.items.map((s) => Object.assign({}, s)), [
+      { k: '', l: '', f: thumbCell, cls: 'l' },
       { k: 'ts', l: '投稿日時', type: 'text' },
       { k: 'pos', l: '枚目' },
       { k: 'views', l: '閲覧' },
@@ -769,6 +782,7 @@ function stories(v) {
       { k: 'follows', l: 'フォロー' },
       { k: '', l: '', f: linkCell },
     ], 'stories', { k: 'ts', dir: -1 })}</div>`;
+  loadThumbs(cur.items.map((s) => s.imageId).filter(Boolean));
 
   // 位置別(最大10枚目)
   const maxPos = Math.min(10, Math.max(0, ...cur.days.map((d) => d.count)));
@@ -928,7 +942,7 @@ function storiesHourly(v, cur, prev, viewSeg) {
 
   v.innerHTML = viewSeg + `<div class="subbar">${selector}${metricSeg}</div>
     <div class="note">${esc(note)}</div>
-    <div class="kpis">${kpis}</div>
+    ${focus ? `<div class="focus-row">${storyImageCard(focus)}<div class="kpis">${kpis}</div></div>` : `<div class="kpis">${kpis}</div>`}
     <div class="grid">
       ${card('sh_curve', '到達曲線', curveDesc)}
       ${card('sh_inc', '1時間ごとの新規' + kl, incDesc)}
@@ -941,7 +955,9 @@ function storiesHourly(v, cur, prev, viewSeg) {
       _select: s.id, _selected: !!focus && s.id === focus.id,
       ts: s.ts, pos: s.pos, url: s.url, h1: s.hs.h1, h3: s.hs.h3, h6: s.hs.h6, h12: s.hs.h12, final: s.hs.final,
       t50: s.hs.t50, share6: s.hs.share6, samples: s.hs.pts.length, status: s.hs.done ? '完了' : '集計中(' + fmt(s.hs.lastH, 1) + 'h)',
+      imageId: s.imageId,
     })), [
+      { k: '', l: '', f: thumbCell, cls: 'l' },
       { k: 'ts', l: '投稿日時', type: 'text' },
       { k: 'pos', l: '枚目' },
       { k: 'h1', l: '1h' }, { k: 'h3', l: '3h' }, { k: 'h6', l: '6h' }, { k: 'h12', l: '12h' },
@@ -953,6 +969,8 @@ function storiesHourly(v, cur, prev, viewSeg) {
       { k: '', l: '', f: linkCell },
     ], 'storyHourly', { k: 'ts', dir: -1 })}</div>`;
 
+  if (focus) loadStoryImage(focus);
+  loadThumbs(list.map((s) => s.imageId).filter(Boolean));
   const c = colors();
   const dashed = { borderDash: [5, 4], pointRadius: 0 };
 
@@ -1018,6 +1036,66 @@ function storiesHourly(v, cur, prev, viewSeg) {
       { backgroundColor: HOURS.map((_, i) => (fb === -1 || i === fb ? c[0] : hexA(c[0], 0.35))) })] },
     options: baseOpts({ scales: scales(), plugins: { legend: legend(false), tooltip: { callbacks: { afterLabel: (ctx) => 'n=' + nOf(byHour[ctx.dataIndex]) + (ctx.dataIndex === fb ? '(選択中のストーリーの時間帯)' : '') } } } }),
   });
+}
+
+/* 選択中のストーリーの画像。保存済みの画像は選んだときに1枚だけ読み込む(全件を一度に送ると重いため) */
+const STORY_IMG_CACHE = {};
+function storyImageCard(s) {
+  return `<div class="card story-img"><div class="frame">` +
+    `<img id="storyImg" data-id="${esc(s.imageId)}" alt="選択中のストーリーの画像" hidden>` +
+    `<span id="storyImgMsg">${s.imageId ? '画像を読み込み中…' : '画像は保存されていません'}</span></div>` +
+    (s.url ? `<a href="${esc(s.url)}" target="_blank" rel="noopener">Instagram で開く</a>` : '') + '</div>';
+}
+function loadStoryImage(s) {
+  const id = s.imageId;
+  if (!id) return;
+  const show = (url) => {
+    const img = document.getElementById('storyImg'), msg = document.getElementById('storyImgMsg');
+    if (!img || img.dataset.id !== id) return; // 読み込み中に別のストーリーへ切り替えた場合
+    if (!url) { if (msg) msg.textContent = '画像を読み込めませんでした'; return; }
+    img.src = url;
+    img.hidden = false;
+    if (msg) msg.hidden = true;
+  };
+  if (STORY_IMG_CACHE[id]) { show(STORY_IMG_CACHE[id]); return; }
+  google.script.run
+    .withSuccessHandler((url) => { STORY_IMG_CACHE[id] = url; show(url); })
+    .withFailureHandler(() => show(null))
+    .getStoryImage(id);
+}
+
+/* 一覧のアイコン。ドライブの縮小版を表示中の行の分だけまとめて読み込む(1回 THUMB_CHUNK 件ずつ) */
+const THUMB_CHUNK = 15;
+const THUMB_CACHE = {}; // ファイルID -> data URL | 'none'
+const THUMB_INFLIGHT = {};
+function thumbCell(r) {
+  if (!r.imageId) return '<span class="sthumb none" title="画像なし"></span>';
+  const c = THUMB_CACHE[r.imageId];
+  if (c === 'none') return '<span class="sthumb none" title="画像を読み込めませんでした"></span>';
+  return `<span class="sthumb" data-thumb="${esc(r.imageId)}">${c ? `<img src="${c}" alt="">` : ''}</span>`;
+}
+function paintThumb(id) {
+  document.querySelectorAll('[data-thumb]').forEach((el) => {
+    if (el.dataset.thumb !== id) return;
+    const c = THUMB_CACHE[id];
+    if (c === 'none') { el.className = 'sthumb none'; el.title = '画像を読み込めませんでした'; el.innerHTML = ''; }
+    else if (c) el.innerHTML = `<img src="${c}" alt="">`;
+  });
+}
+function loadThumbs(ids) {
+  const todo = Array.from(new Set(ids)).filter((id) => !THUMB_CACHE[id] && !THUMB_INFLIGHT[id]);
+  for (let i = 0; i < todo.length; i += THUMB_CHUNK) {
+    const chunk = todo.slice(i, i + THUMB_CHUNK);
+    chunk.forEach((id) => { THUMB_INFLIGHT[id] = true; });
+    google.script.run
+      .withSuccessHandler((map) => chunk.forEach((id) => {
+        delete THUMB_INFLIGHT[id];
+        THUMB_CACHE[id] = (map && map[id]) || 'none';
+        paintThumb(id);
+      }))
+      .withFailureHandler(() => chunk.forEach((id) => { delete THUMB_INFLIGHT[id]; })) // 失敗時は次の描画で再試行
+      .getStoryThumbnails(chunk);
+  }
 }
 
 /* ===================== オーディエンス ===================== */
